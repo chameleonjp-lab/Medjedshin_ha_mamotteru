@@ -55,6 +55,23 @@
     }
     #danger-vignette.active { animation: vigPulse 0.9s infinite alternate; }
     @keyframes vigPulse { from { opacity: 0.3; } to { opacity: 0.85; } }
+    .dmg-num.hurt { font-size: 17px; color: #ff5a4a; text-shadow: 0 0 8px rgba(255, 40, 30, 0.9), 0 1px 4px #000; }
+    .dmg-num.hurt-big { font-size: 22px; color: #ff3b30; text-shadow: 0 0 12px rgba(255, 30, 20, 0.95), 0 1px 4px #000; }
+
+    /* 大きな被弾を知らせる赤い縁と、敗北時の暗転 */
+    #hit-flash {
+      position: fixed; inset: 0; pointer-events: none; z-index: 9;
+      box-shadow: inset 0 0 110px rgba(255, 20, 20, 0.85); opacity: 0;
+    }
+    #defeat-fade {
+      position: fixed; inset: 0; pointer-events: none; z-index: 40;
+      background: radial-gradient(circle, rgba(40, 0, 0, 0.35), rgba(0, 0, 0, 0.88));
+      opacity: 0; transition: opacity 1.1s ease-in;
+    }
+    #defeat-fade.active { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) {
+      #danger-vignette.active { animation: none; opacity: 0.6; }
+    }
 
     /* ===== タイトル画面 ===== */
     #title-screen {
@@ -151,12 +168,6 @@
       max-height: 60vh; overflow-y: auto; padding-right: 4px;
     }
     .howto-list strong { color: #ffd700; }
-    .title-records {
-      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
-      background: rgba(14, 18, 34, 0.84); border: 1.5px solid #d4af37; border-radius: 10px;
-      padding: 7px 8px; color: #f4f1ea; font-size: 12px; width: 100%; gap: 4px 12px;
-    }
-    .title-records span strong { color: #ffd700; }
 
     /* ===== インゲームHUD ===== */
     #hud-root {
@@ -433,6 +444,8 @@
     <canvas id="game-canvas"></canvas>
     <div id="dmg-layer"></div>
     <div id="danger-vignette"></div>
+    <div id="hit-flash"></div>
+    <div id="defeat-fade"></div>
     <div class="banner-toast" id="banner-toast"></div>
 
     <!-- タイトル画面 -->
@@ -446,12 +459,6 @@
         <div class="title-sub" data-i18n="tagline">40ウェーブの魔物と4柱のボスから死者たちの行進を守り抜け</div>
       </div>
       <div class="title-footer">
-        <div class="title-records" id="title-records">
-          <span><span data-i18n="bestScore">ハイスコア</span> <strong id="rec-score">0</strong></span>
-          <span><span data-i18n="bestWave">最高ウェーブ</span> <strong id="rec-wave">0</strong></span>
-          <span><span data-i18n="bestRank">ベストランク</span> <strong id="rec-rank">-</strong></span>
-          <span id="rec-plays-row" hidden><span data-i18n="plays">プレー回数</span> <strong id="rec-plays"></strong></span>
-        </div>
         <div class="title-btn-stack">
           <p class="startup-error" id="startup-error" role="alert" hidden></p>
           <noscript><p class="startup-error">遊ぶには、ブラウザで JavaScript を有効にしてください。</p></noscript>
@@ -495,6 +502,9 @@
       <h2 class="modal-title" id="home-settings-title" data-i18n="settings">設定</h2>
       <label class="vol-row settings-select"><span data-i18n="speed">ゲーム速度</span>
         <select data-game-speed><option value="1" data-i18n="speedNormal">1倍（通常）</option><option value="1.5" data-i18n="speedFast">1.5倍</option><option value="2" data-i18n="speedFastest">2倍</option></select>
+      </label>
+      <label class="vol-row settings-select"><span data-i18n="shake">画面の揺れ</span>
+        <select data-screen-shake><option value="normal" data-i18n="shakeNormal">通常</option><option value="weak" data-i18n="shakeWeak">弱め</option><option value="off" data-i18n="shakeOff">なし</option></select>
       </label>
       <div data-pc-graphics hidden>
         <label class="vol-row settings-select"><span data-i18n="quality">描画品質</span>
@@ -599,6 +609,9 @@
         <div class="modal-body" id="pause-body"></div>
         <label class="vol-row settings-select"><span data-i18n="speed">ゲーム速度</span>
           <select data-game-speed><option value="1" data-i18n="speedNormal">1倍（通常）</option><option value="1.5" data-i18n="speedFast">1.5倍</option><option value="2" data-i18n="speedFastest">2倍</option></select>
+        </label>
+        <label class="vol-row settings-select"><span data-i18n="shake">画面の揺れ</span>
+          <select data-screen-shake><option value="normal" data-i18n="shakeNormal">通常</option><option value="weak" data-i18n="shakeWeak">弱め</option><option value="off" data-i18n="shakeOff">なし</option></select>
         </label>
         <div data-pc-graphics hidden>
           <label class="vol-row settings-select"><span data-i18n="quality">描画品質</span>
@@ -1063,6 +1076,14 @@
       // ============================================================
       // ジオメトリ結合ヘルパー & SpatialHashGrid & DamageTextPool & InputManager
       // ============================================================
+      // Three.js r128 の setColorAt は、最初に呼ばれたときの count の大きさで色の入れ物を作る。
+      // count を 0 にしたあとで呼ぶと入れ物が空になり、全部が黒く描かれるので、先に最大数ぶん作っておく。
+      function withInstanceColors(mesh) {
+        const capacity = mesh.instanceMatrix.count;
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3).fill(1), 3);
+        return mesh;
+      }
+
       function prepareMergedPart(source, partId, hexColor) {
         const geo = source.index ? source.toNonIndexed() : source.clone();
         if (geo.getAttribute('uv')) geo.deleteAttribute('uv');
@@ -1153,16 +1174,28 @@
           }
         }
         spawn(x, z, text, kind) {
-          const item = this.pool.find((p) => !p.active) || this.pool[0];
-          item.active = true; item.x = x + (Math.random() - 0.5) * 0.4; item.y = 1.6; item.z = z; item.age = 0;
+          // 空きがなければ、いちばん長く表示している数字を使い回す
+          let item = null, oldest = null;
+          for (const p of this.pool) {
+            if (!p.active) { item = p; break; }
+            if (!oldest || p.age > oldest.age) oldest = p;
+          }
+          item = item || oldest;
+          item.active = true; item.drawn = false; item.x = x + (Math.random() - 0.5) * 0.4; item.y = 1.6; item.z = z; item.age = 0;
           item.el.textContent = text; item.el.className = kind ? `dmg-num ${kind}` : 'dmg-num';
         }
+        reset() {
+          for (const p of this.pool) { p.active = false; p.el.style.opacity = '0'; }
+        }
+        // 描画の直前に1フレーム1回だけ呼ぶ。dt はそのフレームで進んだゲーム内の時間
         update(dt, camera) {
           const w = window.innerWidth, h = window.innerHeight;
           for (const p of this.pool) {
             if (!p.active) continue;
             p.age += dt;
             if (p.age >= p.maxAge) { p.active = false; p.el.style.opacity = '0'; continue; }
+            if (dt <= 0 && p.drawn) continue;
+            p.drawn = true;
             const t = p.age / p.maxAge;
             this.proj.set(p.x, p.y + t * 1.4 - t * t * 0.5, p.z).project(camera);
             p.el.style.transform = `translate3d(${((this.proj.x * 0.5 + 0.5) * w).toFixed(0)}px, ${((-this.proj.y * 0.5 + 0.5) * h).toFixed(0)}px, 0) translate(-50%, -50%)`;
@@ -1308,7 +1341,7 @@
           this.camera = new THREE.PerspectiveCamera(50, w / h, 0.5, 160);
           this.cameraLookAt = new THREE.Vector3(0, 1.35, 2.8);
           this.baseCameraPos = new THREE.Vector3(0, 8.2, 19.2);
-          this.camDistScale = 1.0; this.shakeIntensity = 0;
+          this.camDistScale = 1.0; this.shakeIntensity = 0; this.shakeScale = 1;
 
           this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !this.isMobile, powerPreference: 'high-performance' });
           this.renderer.shadowMap.enabled = true;
@@ -1373,7 +1406,10 @@
           // Keep the existing desert lighting when the detailed models add studio reflections.
           for (const mesh of [outer, field, lane, t1, pillars]) mesh.material.envMapIntensity = 0;
         }
-        addShake(a) { this.shakeIntensity = Math.min(1.2, this.shakeIntensity + a); }
+        addShake(a) {
+          if (this.shakeScale <= 0) return;
+          this.shakeIntensity = Math.min(1.2 * this.shakeScale, this.shakeIntensity + a * this.shakeScale);
+        }
         update(dt, targetPos, isTitleMode) {
           const p = ENV_PHASES[this.targetPhaseIdx];
           const k = Math.min(1, dt * 1.6);
@@ -1516,7 +1552,9 @@
         takeDamage(amount) {
           if (this.invulnTimer > 0 || this.isInvisible) return false;
           this.hp = Math.max(0, this.hp - amount); this.invulnTimer = PLAYER_CFG.invulnSec;
-          this.flashTimer = PLAYER_CFG.hitFlashSec; this.timeSinceHit = 0; return true;
+          this.flashTimer = PLAYER_CFG.hitFlashSec; this.timeSinceHit = 0;
+          this.onDamaged?.(amount);
+          return true;
         }
         update(dt, inputX, inputZ, inputMag) {
           this.elapsed += dt; this.rig.cloakUniforms.uTime.value = this.elapsed;
@@ -1719,7 +1757,7 @@
 
         spawn(type) {
           this.clear();
-          this.active = true; this.type = type; this.elapsed = 0; this.state = 'idle'; this.timer = 2.0; this.flashTimer = 0;
+          this.active = true; this.type = type; this.elapsed = 0; this.state = 'idle'; this.timer = 2.0; this.flashTimer = 0; this.burrowY = 0;
           this.group.rotation.set(0, 0, 0); this.group.scale.setScalar(1);
 
           if (type === 'ammit') {
@@ -1936,6 +1974,7 @@
 
           if (this.hp <= 0) {
             const defeatedType = this.type;
+            this.fx?.bossDeath(this.x, this.z);
             this.clear();
             this.onBossDefeated(defeatedType);
             return true;
@@ -2013,8 +2052,23 @@
                 const s = souls.findNearestSoul(this.x, 13.5);
                 if (s && Math.abs(s.x - this.x) < 3.0) souls.damageSoul(s, 40, barrier);
                 this.sceneManager.addShake(0.45);
-                this.state = 'idle'; this.timer = 2.6; this.z = -12;
+                // 瞬間移動せず、砂に潜ってから奥で浮かび上がる
+                this.state = 'burrow_down'; this.timer = 0.45; this.z = 13.5;
+                this.fx?.dust(this.x, this.z, 1);
               }
+            } else if (this.state === 'burrow_down') {
+              this.timer -= dt;
+              const t = 1 - Math.max(0, this.timer) / 0.45;
+              this.burrowY = -2.8 * t * t;
+              if (this.timer <= 0) {
+                this.state = 'burrow_up'; this.timer = 0.55; this.z = -12;
+                this.fx?.dust(this.x, this.z, 0.9);
+              }
+            } else if (this.state === 'burrow_up') {
+              this.timer -= dt;
+              const t = Math.max(0, this.timer) / 0.55;
+              this.burrowY = -2.8 * t * t;
+              if (this.timer <= 0) { this.burrowY = 0; this.state = 'idle'; this.timer = 1.6; }
             } else if (this.state === 'roar_charge') {
               this.timer -= dt;
               this.group.scale.set(1.15, 0.82, 1.15);
@@ -2029,7 +2083,7 @@
                 this.state = 'idle'; this.timer = 2.4;
               }
             }
-            this.group.position.set(this.x, 0, this.z);
+            this.group.position.set(this.x, this.burrowY || 0, this.z);
           } else if (this.type === 'set') {
             if (this.state === 'idle') {
               this.timer -= dt;
@@ -2192,6 +2246,133 @@
       }
 
       // ============================================================
+      // BurstFx（撃破・被害・生還・砂煙の短い粒の演出）
+      // ============================================================
+      const ENEMY_FX_COLORS = {
+        jackal: [0x5c3c24, 0xc9a227], mummy: [0xc7bea9, 0xe8dcc0], scarab: [0x8844dd, 0xd4af37],
+        scorpion: [0x3b6e32, 0x44ff44], archer: [0x3a4060, 0xffd700], ushabti: [0x868e96, 0xd4af37],
+        wisp: [0xdd44ff, 0x00e5ff],
+      };
+      class BurstFx {
+        constructor(scene, cap = 480) {
+          this.parts = Array.from({ length: cap }, () => ({
+            active: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, life: 0.5, size: 1, grav: 9, spin: 0, color: new THREE.Color(),
+          }));
+          this.next = 0;
+          this.dummy = new THREE.Object3D();
+          this.mesh = withInstanceColors(new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.11, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), cap));
+          this.mesh.count = 0; this.mesh.frustumCulled = false;
+          scene.add(this.mesh);
+          this.rings = Array.from({ length: 16 }, () => {
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+            const mesh = new THREE.Mesh(new THREE.RingGeometry(0.78, 1.0, 28), mat);
+            mesh.rotation.x = -Math.PI / 2; mesh.visible = false; scene.add(mesh);
+            return { mesh, active: false, age: 0, life: 0.4, size: 1, opacity: 0.7 };
+          });
+          this.nextRing = 0;
+          this.dirty = true;
+        }
+        reset() {
+          for (const p of this.parts) p.active = false;
+          for (const r of this.rings) { r.active = false; r.mesh.visible = false; }
+          this.dirty = true;
+        }
+        emit(x, y, z, count, hex, o = {}) {
+          const speed = o.speed ?? 3.2, up = o.up ?? 3.6, spread = o.spread ?? 0.25;
+          for (let i = 0; i < count; i++) {
+            const p = this.parts[this.next];
+            this.next = (this.next + 1) % this.parts.length;
+            const a = Math.random() * Math.PI * 2, s = speed * (0.45 + Math.random() * 0.55);
+            p.active = true; p.age = 0;
+            p.x = x + Math.cos(a) * spread; p.y = y + Math.random() * 0.4; p.z = z + Math.sin(a) * spread;
+            p.vx = Math.cos(a) * s; p.vz = Math.sin(a) * s; p.vy = up * (0.5 + Math.random() * 0.7);
+            p.life = (o.life ?? 0.55) * (0.75 + Math.random() * 0.5);
+            p.size = (o.size ?? 1) * (0.7 + Math.random() * 0.6);
+            p.grav = o.grav ?? 9; p.spin = (Math.random() - 0.5) * 14;
+            p.color.setHex(Array.isArray(hex) ? hex[i % hex.length] : hex);
+          }
+          this.dirty = true;
+        }
+        ring(x, z, hex, size = 1.4, life = 0.42, opacity = 0.7) {
+          const r = this.rings[this.nextRing];
+          this.nextRing = (this.nextRing + 1) % this.rings.length;
+          r.active = true; r.age = 0; r.life = life; r.size = size; r.opacity = opacity;
+          r.mesh.material.color.setHex(hex); r.mesh.position.set(x, 0.07, z);
+          r.mesh.scale.setScalar(0.2); r.mesh.material.opacity = opacity; r.mesh.visible = true;
+        }
+        enemyDeath(e) {
+          const cols = ENEMY_FX_COLORS[e.type] || [0xd9b372, 0xffffff];
+          const big = e.elite || e.type === 'ushabti';
+          this.emit(e.x, 0.75, e.z, e.elite ? 16 : big ? 12 : 8, e.elite ? [0xffd700, cols[0], 0xfff4a3] : [cols[0], cols[1], 0xd9b372], {
+            speed: big ? 4.2 : 3.2, up: e.type === 'wisp' ? 5 : 3.6, size: big ? 1.35 : 1,
+          });
+          this.ring(e.x, e.z, e.elite ? 0xffd700 : e.type === 'wisp' ? 0xdd44ff : 0xf4e2b8, e.type === 'wisp' ? 2.3 : big ? 1.8 : 1.15);
+        }
+        soulLost(s) {
+          this.emit(s.x, 0.9, s.z, s.type === 'coffin' ? 18 : 12, [0xff3b30, 0xffffff, 0xff8a7a], { speed: 2.6, up: 4.2, life: 0.7 });
+          this.ring(s.x, s.z, 0xff3b30, 1.7, 0.5, 0.85);
+        }
+        soulRescued(s) {
+          // 光の粒がゆっくり空へ昇る
+          this.emit(s.x, 0.6, s.z, s.type === 'coffin' ? 16 : 9, s.type === 'coffin' ? [0xffd700, 0xfff4a3] : [0x9ff6ff, 0xffffff, 0xffe680], {
+            speed: 0.7, up: 2.6, grav: -1.6, life: 1.1, size: 0.8, spread: 0.35,
+          });
+          this.ring(s.x, s.z, 0x7ff3ff, 1.2, 0.6, 0.55);
+        }
+        bossDeath(x, z) {
+          this.dust(x, z, 1.6);
+          this.emit(x, 1.6, z, 40, [0xffd700, 0xfff4a3, 0xff6b00, 0xffffff], { speed: 7, up: 7, size: 1.6, life: 1.1, spread: 1.2 });
+          this.ring(x, z, 0xffd700, 6, 0.9, 0.85);
+        }
+        dust(x, z, scale = 1) {
+          this.emit(x, 0.2, z, Math.round(18 * scale), [0xd9b372, 0xc29855, 0xf0d9a8], { speed: 5 * scale, up: 4.5, size: 1.5 * scale, life: 0.75 });
+          this.ring(x, z, 0xe8cf9a, 3.2 * scale, 0.55, 0.6);
+        }
+        update(dt) {
+          if (dt <= 0) return;
+          let any = false;
+          for (const p of this.parts) {
+            if (!p.active) continue;
+            p.age += dt;
+            if (p.age >= p.life) { p.active = false; any = true; continue; }
+            p.vy -= p.grav * dt;
+            p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+            if (p.y < 0.06 && p.vy < 0) { p.y = 0.06; p.vy *= -0.3; p.vx *= 0.55; p.vz *= 0.55; }
+            any = true;
+          }
+          if (any) this.dirty = true;
+          for (const r of this.rings) {
+            if (!r.active) continue;
+            r.age += dt;
+            const t = r.age / r.life;
+            if (t >= 1) { r.active = false; r.mesh.visible = false; continue; }
+            r.mesh.scale.setScalar(0.2 + (1 - (1 - t) * (1 - t)) * r.size);
+            r.mesh.material.opacity = r.opacity * (1 - t);
+          }
+        }
+        // 描画の直前に1フレーム1回だけ呼ぶ
+        sync() {
+          if (!this.dirty) return;
+          this.dirty = false;
+          let n = 0;
+          for (const p of this.parts) {
+            if (!p.active) continue;
+            const t = p.age / p.life;
+            this.dummy.position.set(p.x, p.y, p.z);
+            this.dummy.rotation.set(p.age * p.spin, p.age * p.spin * 0.7, 0);
+            this.dummy.scale.setScalar(Math.max(0.01, p.size * (1 - t * t)));
+            this.dummy.updateMatrix();
+            this.mesh.setMatrixAt(n, this.dummy.matrix);
+            this.mesh.setColorAt(n, p.color);
+            n++;
+          }
+          this.mesh.count = n;
+          this.mesh.instanceMatrix.needsUpdate = true;
+          if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+        }
+      }
+
+      // ============================================================
       // SoulMarchManager / ProjectileManager / EnemyManager / GemManager
       // ============================================================
       class CrowdRendering {
@@ -2284,6 +2465,7 @@
         }
         reset() {
           for (const s of this.souls) s.active = false;
+          this.priests = [];
           this.visuals.markChanged();
           this.rescuedCount = 0; this.rescuedPts = 0; this.casualtyCount = 0; this.spawnTimer = 0.4; this.relayTimer = 15.0;
           this.spawnSoul('general', -10.5, 13.0); this.spawnSoul('priest', -7.2, 13.8); this.spawnSoul('general', -4.2, 12.8);
@@ -2292,6 +2474,7 @@
           const sp = SOUL_TYPES[type];
           const s = this.souls.find((i) => !i.active); if (!s) return null;
           s.active = true; s.type = type; s.x = x; s.z = z; s.hp = sp.hp; s.maxHp = sp.hp; s.speed = sp.speed; s.animPhase = Math.random() * 6.28; s.flashTimer = 0; s.tookDamage = false;
+          if (type === 'priest') this.priests.push(s);
           this.visuals.markChanged();
           if (type === 'coffin') this.cb.onCoffinSpawn();
           return s;
@@ -2299,7 +2482,11 @@
         spawnCoffin() { this.spawnSoul('coffin', FIELD.soulSpawnX, 13.5 + (Math.random() - 0.5) * 1.2); }
         healAllSouls() { for (const s of this.souls) if (s.active) s.hp = s.maxHp; }
         getDenseX() { let sum = 0, c = 0; for (const s of this.souls) if (s.active) { sum += s.x; c++; } return c > 0 ? sum / c : 0; }
-        isNearPriest(x, z) { for (const s of this.souls) if (s.active && s.type === 'priest' && (s.x - x) ** 2 + (s.z - z) ** 2 <= 12.25) return true; return false; }
+        // 敵1体ごとに毎回呼ばれるので、全員ではなく神官だけの一覧を調べる
+        isNearPriest(x, z) {
+          for (const s of this.priests) if (s.active && s.type === 'priest' && (s.x - x) ** 2 + (s.z - z) ** 2 <= 12.25) return true;
+          return false;
+        }
         findNearestSoul(x, z) {
           let best = null, bd = Infinity;
           for (const s of this.souls) { if (!s.active) continue; const d = (s.x - x) ** 2 + (s.z - z) ** 2; if (d < bd) { bd = d; best = s; } }
@@ -2313,11 +2500,12 @@
           soul.tookDamage = true;
           soul.flashTimer = 0.14;
           this.visuals.markChanged();
-          if (soul.hp <= 0) { soul.active = false; this.casualtyCount++; this.cb.onCasualty(); return true; }
+          if (soul.hp <= 0) { soul.active = false; this.casualtyCount++; this.cb.onCasualty(soul); return true; }
           return false;
         }
         update(dt, barrier, gems) {
           this.visuals.markChanged(dt);
+          if (this.priests.some((s) => !s.active || s.type !== 'priest')) this.priests = this.priests.filter((s) => s.active && s.type === 'priest');
           this.spawnTimer -= dt;
           if (this.spawnTimer <= 0) {
             this.spawnTimer = 1.9;
@@ -2336,6 +2524,7 @@
             if (s.flashTimer > 0) s.flashTimer = Math.max(0, s.flashTimer - dt);
             if (s.x >= FIELD.soulGoalX) {
               s.active = false; this.rescuedCount++; this.rescuedPts += SOUL_TYPES[s.type].rewardPt;
+              this.cb.onRescued?.(s);
               if (s.type === 'coffin') this.cb.onCoffinRescued(!s.tookDamage);
               continue;
             }
@@ -2379,10 +2568,17 @@
           this.audio = audio; this.dmgText = dmgText; this.sceneManager = sceneManager; this.recordDmg = recordDmg;
           this.projs = Array.from({ length: 80 }, () => ({ active: false, kind: 'poison', x: 0, z: 0, vx: 0, vz: 0, dmg: 10, reflected: false, life: 0 }));
           this.dummy = new THREE.Object3D(); this.tmpCol = new THREE.Color();
-          this.mesh = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 80);
+          this.mesh = withInstanceColors(new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 80));
           this.mesh.count = 0; this.mesh.frustumCulled = false; scene.add(this.mesh);
+          // 弾のまわりの淡い光と、真下の地面の印（高さと進む向きを読みやすくする）
+          this.halo = new THREE.InstancedMesh(new THREE.SphereGeometry(0.34, 10, 8),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }), 80);
+          const markGeo = new THREE.CircleGeometry(0.34, 18); markGeo.rotateX(-Math.PI / 2);
+          this.marker = new THREE.InstancedMesh(markGeo,
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }), 80);
+          for (const m of [this.halo, this.marker]) { withInstanceColors(m); m.count = 0; m.frustumCulled = false; scene.add(m); }
         }
-        reset() { for (const p of this.projs) p.active = false; this.mesh.count = 0; }
+        reset() { for (const p of this.projs) p.active = false; this.mesh.count = 0; this.halo.count = 0; this.marker.count = 0; }
         spawn(kind, x, z, dx, dz, spd, dmg) {
           const p = this.projs.find((i) => !i.active); if (!p) return;
           p.active = true; p.kind = kind; p.x = x; p.z = z; p.vx = dx * spd; p.vz = dz * spd; p.dmg = dmg; p.reflected = false; p.life = 0;
@@ -2434,10 +2630,18 @@
             if (p.reflected) { this.dummy.scale.set(1.4, 1.4, 2.2); this.tmpCol.setHex(0x00ffff); }
             else if (p.kind === 'arrow') { this.dummy.scale.set(0.45, 0.45, 2.6); this.tmpCol.setHex(0xff3333); }
             else { this.dummy.scale.set(1, 1, 1); this.tmpCol.setHex(0x44ff44); }
-            this.dummy.updateMatrix(); this.mesh.setMatrixAt(rIdx, this.dummy.matrix); this.mesh.setColorAt(rIdx, this.tmpCol); rIdx++;
+            this.dummy.updateMatrix(); this.mesh.setMatrixAt(rIdx, this.dummy.matrix); this.mesh.setColorAt(rIdx, this.tmpCol);
+            const glow = p.reflected ? 1.5 : p.kind === 'arrow' ? 0.8 : 1;
+            this.dummy.rotation.set(0, 0, 0); this.dummy.scale.setScalar(glow); this.dummy.updateMatrix();
+            this.halo.setMatrixAt(rIdx, this.dummy.matrix); this.halo.setColorAt(rIdx, this.tmpCol);
+            this.dummy.position.y = 0.04; this.dummy.updateMatrix();
+            this.marker.setMatrixAt(rIdx, this.dummy.matrix); this.marker.setColorAt(rIdx, this.tmpCol);
+            rIdx++;
           }
-          this.mesh.count = rIdx; this.mesh.instanceMatrix.needsUpdate = true;
-          if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+          for (const m of [this.mesh, this.halo, this.marker]) {
+            m.count = rIdx; m.instanceMatrix.needsUpdate = true;
+            if (m.instanceColor) m.instanceColor.needsUpdate = true;
+          }
         }
       }
 
@@ -2554,7 +2758,7 @@
                 e.attackTimer += dt;
                 if (!e.attackHitDealt && e.attackTimer >= 0.32) {
                   e.attackHitDealt = true;
-                  if (e.type === 'wisp') { if (e.targetSoul && e.targetSoul.active) souls.damageSoul(e.targetSoul, e.attack * 1.4, barrier); e.active = false; continue; }
+                  if (e.type === 'wisp') { if (e.targetSoul && e.targetSoul.active) souls.damageSoul(e.targetSoul, e.attack * 1.4, barrier); e.active = false; this.onVanish?.(e); continue; }
                   if (e.targetSoul && e.targetSoul.active && (e.targetSoul.x - e.x) ** 2 + (e.targetSoul.z - e.z) ** 2 <= 2.4) {
                     souls.damageSoul(e.targetSoul, e.attack, barrier);
                     if (barrier && barrier.isCoveringX(e.x)) {
@@ -2583,10 +2787,8 @@
             // モブ敵との接触でメジェドに 1〜3 ダメージ
             const pdx = e.x - player.position.x, pdz = e.z - player.position.z;
             if (pdx * pdx + pdz * pdz <= (e.radius + PLAYER_CFG.bodyRadius) ** 2) {
-              const contactDmg = 1 + Math.floor(Math.random() * 3);
-              if (player.takeDamage(contactDmg)) {
-                this.dmgText.spawn(player.position.x, player.position.z, `-${contactDmg}`, '');
-              }
+              // 数字の表示は player.onDamaged でまとめて行う
+              player.takeDamage(1 + Math.floor(Math.random() * 3));
             }
             grid.insert(e.index, e.x, e.z);
           }
@@ -2645,7 +2847,7 @@
           this.onCollect = onCollect; this.onHorus = onHorus;
           this.gems = Array.from({ length: 200 }, () => ({ active: false, type: 0, exp: 10, x: 0, z: 0, age: 0, attracted: false }));
           this.dummy = new THREE.Object3D(); this.col = new THREE.Color(); this.elapsed = 0;
-          this.mesh = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.24, 0), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.4, emissive: 0x222222, flatShading: true }), 200);
+          this.mesh = withInstanceColors(new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.24, 0), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.4, emissive: 0x222222, flatShading: true }), 200));
           this.mesh.count = 0; this.mesh.frustumCulled = false; scene.add(this.mesh);
         }
         reset() { for (const g of this.gems) g.active = false; this.mesh.count = 0; }
@@ -3411,6 +3613,8 @@
         const canvas = document.getElementById('game-canvas');
         const dmgLayer = document.getElementById('dmg-layer');
         const dangerVignette = document.getElementById('danger-vignette');
+        const hitFlash = document.getElementById('hit-flash');
+        const defeatFade = document.getElementById('defeat-fade');
         const bannerToast = document.getElementById('banner-toast');
         const titleScreen = document.getElementById('title-screen');
         const hudRoot = document.getElementById('hud-root');
@@ -3448,6 +3652,7 @@
         const grid = new SpatialHashGrid();
         const dmgText = new DamageTextPool(dmgLayer);
         const player = new PlayerMedjed(sceneManager.scene, sceneManager.detailedModels);
+        const fx = new BurstFx(sceneManager.scene);
 
         let skillDamageStats = {};
         const resetDmgStats = () => {
@@ -3477,12 +3682,22 @@
           pendingGameSeconds = 0;
         };
         let bossIntroTimer = 0, slowMoTimer = 0, hitStopTimer = 0, casualtyFlashTimer = 0, toastTimer = 0;
-        let bossRewardTimer = 0, victoryTimer = 0, pendingChests = 0;
+        let bossRewardTimer = 0, victoryTimer = 0, pendingChests = 0, defeatTimer = 0, hitFlashLevel = 0;
         let currentWave = 1, waveElapsed = 0, waveSpawnedCount = 0, waveElitesSpawned = 0, waveSpawnTimer = 0.4;
         let playerLv = 1, currentExp = 0, nextExp = nextExpForLevel(1), pendingLevelUps = 0, bossBonusPts = 0;
         let levelUpOpenedAt = 0, preModalPtrs = new Set(), validModalPtrs = new Set(), currentChoices = [];
 
         const showBanner = (msg) => { bannerToast.textContent = msg; bannerToast.classList.add('show'); toastTimer = 2.6; };
+        // メジェドが受けたダメージは、原因にかかわらずここで数字にする。大きいほど目立たせる
+        player.onDamaged = (amount) => {
+          if (gameState !== 'PLAYING') return;
+          const big = amount >= 15;
+          dmgText.spawn(player.position.x, player.position.z, `-${amount}`, big ? 'hurt-big' : amount >= 6 ? 'hurt' : '');
+          if (amount >= 6) {
+            hitFlashLevel = Math.max(hitFlashLevel, big ? 1 : 0.5);
+            sceneManager.addShake(big ? 0.35 : 0.12);
+          }
+        };
         const clearBattleNotices = () => {
           casualtyFlashTimer = 0;
           toastTimer = 0;
@@ -3509,21 +3724,11 @@
         const rankingStatus = document.getElementById('result-ranking-status');
         const rankingRetry = document.getElementById('result-ranking-retry');
         let rankingRun = null;
-        let confirmedPlayCount = 0;
-        const refreshPlayCount = async () => {
-          try {
-            const count = await ranking.playCount();
-            confirmedPlayCount = Math.max(confirmedPlayCount, count);
-            document.getElementById('rec-plays').textContent = number(confirmedPlayCount);
-            document.getElementById('rec-plays-row').hidden = false;
-          } catch {}
-        };
         if (ranking) {
           nameInput.value = ranking.savedName();
-          refreshPlayCount();
-          ranking.flush().then(refreshPlayCount);
+          ranking.flush();
           window.addEventListener('online', () => {
-            ranking.flush().then(refreshPlayCount);
+            ranking.flush();
             if (gameState === 'RESULT' && rankingRun?.result && !rankingRetry.hidden) sendRankingResult(rankingRun);
           });
         }
@@ -3549,16 +3754,7 @@
           } catch { return { highScore: 0, bestWave: 0, bestRank: '-' }; }
         };
         const saveRecords = (rec) => { try { localStorage.setItem('medjed_3d_records_v1', JSON.stringify(rec)); } catch {} };
-        const renderTitleRecords = () => {
-          const r = loadRecords();
-          document.getElementById('rec-score').textContent = number(r.highScore);
-          document.getElementById('rec-wave').textContent = `${r.bestWave} / 40`;
-          document.getElementById('rec-rank').textContent = r.bestRank;
-        };
-        renderTitleRecords();
         document.addEventListener('medjedlanguagechange', () => {
-          renderTitleRecords();
-          document.getElementById('rec-plays').textContent = number(confirmedPlayCount);
           nameInput.setCustomValidity('');
           syncAudioControls();
         });
@@ -3727,6 +3923,7 @@
         };
 
         const boss = new BossManager(sceneManager.scene, audio, dmgText, sceneManager, (defeatedType) => {
+          if (gameState === 'DEFEAT') return;
           bossHud.classList.remove('visible');
           audio.playBossDefeat();
           slowMoTimer = 0.5;
@@ -3747,9 +3944,27 @@
           }
         });
 
+        boss.fx = fx;
+
+        // 負けた瞬間にすぐ結果を出さず、ゆっくりにしながら暗くしてから結果を出す
+        const triggerDefeat = () => {
+          if (gameState !== 'PLAYING') return;
+          gameState = 'DEFEAT';
+          defeatTimer = 1.3;
+          input.resetAll();
+          clearBattleNotices();
+          luModal.classList.remove('visible');
+          bossIntroBanner.classList.remove('visible');
+          audio.setBgmMode('result');
+          sceneManager.addShake(0.5);
+          if (player.hp <= 0) fx.emit(player.position.x, 1, player.position.z, 22, [0xf4f1ea, 0x00e5ff, 0xffd700], { speed: 3.5, up: 4.5, size: 1.2, life: 0.9 });
+          defeatFade.classList.add('active');
+        };
+
         const showResult = (cleared) => {
           if (gameState === 'RESULT' || (!cleared && gameState === 'VICTORY')) return;
           gameState = 'RESULT';
+          defeatFade.classList.remove('active');
           clearBattleNotices();
           input.resetAll();
           hudRoot.classList.add('hidden');
@@ -3772,7 +3987,6 @@
             bestWave: Math.max(prev.bestWave, currentWave),
             bestRank: rankOrder[rank] > rankOrder[prev.bestRank] ? rank : prev.bestRank,
           });
-          renderTitleRecords();
 
           document.getElementById('res-title').textContent = cleared ? `🌄 ${t('wonTitle')}` : t('lostTitle');
           document.getElementById('res-sub').textContent = cleared ? t('wonText') : t('lostWave', { wave: number(currentWave) });
@@ -3871,7 +4085,7 @@
         };
 
         const gainExp = (amt) => {
-          if (gameState === 'VICTORY' || gameState === 'RESULT') return;
+          if (gameState === 'VICTORY' || gameState === 'RESULT' || gameState === 'DEFEAT') return;
           audio.playGem(); currentExp += amt;
           while (currentExp >= nextExp) {
             currentExp -= nextExp;
@@ -3891,16 +4105,19 @@
 
         const gems = new GemManager(sceneManager.scene, (exp) => gainExp(exp), () => showBanner(`👁️ ${t('horus')}`));
         const souls = new SoulMarchManager(sceneManager.scene, {
-          onCasualty: () => {
+          onCasualty: (soul) => {
+            fx.soulLost(soul);
+            if (gameState !== 'PLAYING') return;
             casualtyFlashTimer = 0.35; rightPanel.classList.add('casualty-flash');
             sceneManager.addShake(0.22); audio.playCasualty();
             if (souls.casualtyCount >= 25) dangerVignette.classList.add('active');
-            if (souls.casualtyCount >= 30) showResult(false);
+            if (souls.casualtyCount >= 30) triggerDefeat();
           },
+          onRescued: (soul) => fx.soulRescued(soul),
           onExpRelay: () => { const c = gems.attractLowerHalf(); if (c > 0) showBanner(`✨ ${t('gemRelay', { count: number(c) })}`); },
           onCoffinSpawn: () => showBanner(`⚱️ ${t('coffinSpawn')}`),
           onCoffinRescued: (undamaged) => {
-            if (gameState === 'VICTORY' || gameState === 'RESULT') return;
+            if (gameState === 'VICTORY' || gameState === 'RESULT' || gameState === 'DEFEAT') return;
             if (undamaged) {
               showBanner(`🎁 ${t('coffinGold')}`);
               pendingChests++;
@@ -3910,6 +4127,7 @@
           },
         }, sceneManager.detailedModels);
         const enemies = new EnemyManager(sceneManager.scene, (e) => {
+          fx.enemyDeath(e);
           gems.spawnForEnemy(e);
           if (e.type === 'wisp') {
             audio.playBoom();
@@ -3918,10 +4136,11 @@
               souls.damageSoul(ns, Math.round(e.attack * 0.9), skills.getBarrierInterface());
             }
             if (gameState === 'PLAYING' && (player.position.x - e.x) ** 2 + (player.position.z - e.z) ** 2 <= 2.1 ** 2) {
-              if (player.takeDamage(Math.round(e.attack * 0.8)) && player.hp <= 0) showResult(false);
+              if (player.takeDamage(Math.round(e.attack * 0.8)) && player.hp <= 0) triggerDefeat();
             }
           }
         }, dmgText, projectiles, recordDmg, sceneManager.detailedModels);
+        enemies.onVanish = (e) => fx.enemyDeath(e);
 
         const startWave = (w) => {
           currentWave = Math.min(40, w);
@@ -3938,7 +4157,7 @@
             gameState = 'BOSS_INTRO'; bossIntroTimer = 2.0;
             biName.textContent = t(`${boss.type}.name`); biSub.textContent = t(`${boss.type}.hint`);
             bossIntroBanner.classList.add('visible');
-            bossHud.classList.add('visible'); bossNameLabel.textContent = biName.textContent;
+            bossHud.classList.add('visible'); setText(bossNameLabel, biName.textContent);
             audio.setBgmMode('boss'); audio.playBossWarn();
           } else {
             boss.clear(); bossHud.classList.remove('visible');
@@ -3969,6 +4188,9 @@
           brModal.classList.remove('visible');
           hudRoot.classList.remove('hidden');
           dangerVignette.classList.remove('active');
+          defeatFade.classList.remove('active');
+          hitFlashLevel = 0; defeatTimer = 0; hitFlash.style.opacity = '0';
+          fx.reset(); dmgText.reset();
           clearBattleNotices();
           playerLv = 1; currentExp = 0; nextExp = nextExpForLevel(1); pendingLevelUps = 0; bossBonusPts = 0;
           bossRewardTimer = 0; pendingChests = 0;
@@ -3979,7 +4201,7 @@
           resetFrameClock();
           startWave(1);
           rankingRun = ranking?.start(name) ?? null;
-          if (rankingRun) ranking.send(rankingRun).then(refreshPlayCount).catch(() => {});
+          if (rankingRun) ranking.send(rankingRun).catch(() => {});
         };
 
         const backToTitle = () => {
@@ -3992,6 +4214,10 @@
           howtoModal.classList.remove('visible');
           gameState = 'TITLE';
           clearBattleNotices();
+          defeatFade.classList.remove('active');
+          dangerVignette.classList.remove('active');
+          hitFlashLevel = 0; defeatTimer = 0; hitFlash.style.opacity = '0';
+          fx.reset(); dmgText.reset();
           audio.setBgmMode('title');
           hudRoot.classList.add('hidden');
           resultModal.classList.remove('visible');
@@ -4029,6 +4255,29 @@
             gameSpeed = selected;
             speedControls.forEach(select => { select.value = String(gameSpeed); });
             try { localStorage.setItem(gameSpeedKey, String(gameSpeed)); } catch {}
+          });
+        }
+        // 画面の揺れ：保存した値がなければ、OSの「動きを減らす」設定に合わせて弱めにする
+        const shakeKey = 'medjed_screen_shake_v1';
+        const shakeScales = { normal: 1, weak: 0.4, off: 0 };
+        let shakeMode = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'weak' : 'normal';
+        try {
+          const savedShake = localStorage.getItem(shakeKey);
+          if (savedShake in shakeScales) shakeMode = savedShake;
+        } catch {}
+        const shakeControls = document.querySelectorAll('select[data-screen-shake]');
+        const applyShake = () => {
+          sceneManager.shakeScale = shakeScales[shakeMode];
+          if (sceneManager.shakeScale === 0) sceneManager.shakeIntensity = 0;
+          shakeControls.forEach((select) => { select.value = shakeMode; });
+        };
+        applyShake();
+        for (const control of shakeControls) {
+          control.addEventListener('change', () => {
+            if (!(control.value in shakeScales)) return;
+            shakeMode = control.value;
+            applyShake();
+            try { localStorage.setItem(shakeKey, shakeMode); } catch {}
           });
         }
         if (!isMobileDevice) {
@@ -4166,10 +4415,19 @@
           if (gameState === 'TITLE' || gameState === 'RESULT' || gameState === 'VICTORY') {
             player.update(dt, 0, 0, 0);
             sceneManager.update(dt, player.position, true);
+            fx.update(dt);
+            frameGameSeconds += dt;
             if (gameState === 'VICTORY') {
               victoryTimer -= dt;
               if (victoryTimer <= 0) showResult(true);
             }
+          } else if (gameState === 'DEFEAT') {
+            // ゲーム速度にかかわらず、実時間の4分の1の速さで動かす。終わる時刻は tick で実時間で数える
+            const slow = dt * 0.25 / gameSpeed;
+            player.update(slow, 0, 0, 0);
+            fx.update(slow);
+            frameGameSeconds += slow;
+            sceneManager.update(dt / gameSpeed, player.position, false);
           } else if (gameState === 'BOSS_INTRO') {
             bossIntroTimer -= dt;
             sceneManager.update(dt, player.position, false);
@@ -4183,7 +4441,7 @@
               player.update(dt, input.moveDir.x, input.moveDir.z, input.moveMagnitude);
 
               waveElapsed += dt;
-              hudWaveFill.style.width = wCfg.boss ? '100%' : `${Math.min(100, (waveElapsed / wCfg.dur) * 100).toFixed(1)}%`;
+              setStyleWidth(hudWaveFill, wCfg.boss ? '100%' : `${Math.min(100, (waveElapsed / wCfg.dur) * 100).toFixed(1)}%`);
 
               const maxConc = waveMaxConcurrent(currentWave);
               const spawnInterval = wCfg.boss ? 1.4 : Math.max(0.16, (wCfg.dur / wCfg.total) * 0.92);
@@ -4206,20 +4464,22 @@
               }
 
               const barrier = skills.getBarrierInterface();
+              fx.update(dt);
               enemies.update(dt, souls, grid, barrier, player);
-              if (player.hp <= 0) { showResult(false); return; }
-              if (gameState === 'RESULT') return;
-              boss.update(dt, player, souls, barrier, projectiles, () => showResult(false));
-              if (gameState === 'RESULT') return;
+              if (player.hp <= 0) { triggerDefeat(); return; }
+              if (gameState !== 'PLAYING') return;
+              boss.update(dt, player, souls, barrier, projectiles, triggerDefeat);
+              if (gameState !== 'PLAYING') return;
               souls.update(dt, barrier, gems);
-              if (gameState === 'RESULT') return;
+              if (gameState !== 'PLAYING') return;
               skills.update(dt, player, enemies, boss, souls, grid, projectiles);
               if (gameState === 'PLAYING') {
-                projectiles.update(dt, player, input, enemies, boss, souls, grid, barrier, (sec) => { hitStopTimer = sec; }, () => showResult(false));
+                projectiles.update(dt, player, input, enemies, boss, souls, grid, barrier, (sec) => { hitStopTimer = sec; }, triggerDefeat);
               }
               if (gameState === 'PLAYING') gems.update(dt, player.position);
               sceneManager.update(dt, player.position, false);
-              dmgText.update(dt, sceneManager.camera);
+              // ダメージ数字は描画の直前（tick）で1フレーム1回だけ動かす
+              frameGameSeconds += dt;
             }
 
             if (gameState === 'PLAYING') {
@@ -4236,19 +4496,25 @@
               }
             }
 
-            if (boss.active) {
-              bossHpFill.style.width = `${Math.max(0, (boss.hp / boss.maxHp) * 100).toFixed(1)}%`;
-              const chargeWarn = boss.isChargingCancelable ? ` ⚡ ${t('charge')}` : '';
-              bossNameLabel.textContent = t(`${boss.type}.name`) + chargeWarn;
-              bossCoresLabel.textContent = boss.type === 'apep'
-                ? `${t('cores')} ${'🟣'.repeat(boss.getAliveCoreCount())}${'⚫'.repeat(3 - boss.getAliveCoreCount())}`
-                : `${number(Math.ceil(boss.hp))} / ${number(boss.maxHp)}`;
-            }
           }
         };
 
+        // 値が変わったときだけ画面の文字や幅を書き換える
+        const setText = (el, text) => { if (el._shown !== text) { el._shown = text; el.textContent = text; } };
+        const setStyleWidth = (el, width) => { if (el._width !== width) { el._width = width; el.style.width = width; } };
+        const renderBossHud = () => {
+          if (!boss.active) return;
+          setStyleWidth(bossHpFill, `${Math.max(0, (boss.hp / boss.maxHp) * 100).toFixed(1)}%`);
+          const chargeWarn = boss.isChargingCancelable ? ` ⚡ ${t('charge')}` : '';
+          setText(bossNameLabel, t(`${boss.type}.name`) + chargeWarn);
+          setText(bossCoresLabel, boss.type === 'apep'
+            ? `${t('cores')} ${'🟣'.repeat(boss.getAliveCoreCount())}${'⚫'.repeat(3 - boss.getAliveCoreCount())}`
+            : `${number(Math.ceil(boss.hp))} / ${number(boss.maxHp)}`);
+        };
+        let frameGameSeconds = 0;
+
         const isGameClockRunning = () =>
-          gameState === 'PLAYING' || gameState === 'BOSS_INTRO' || gameState === 'VICTORY';
+          gameState === 'PLAYING' || gameState === 'BOSS_INTRO' || gameState === 'VICTORY' || gameState === 'DEFEAT';
         const tick = (now) => {
           requestAnimationFrame(tick);
           if (document.hidden) return;
@@ -4258,6 +4524,10 @@
           audio.updateBgm(presentationStep);
           updateBattleNotices(elapsed);
 
+          if (gameState === 'DEFEAT') {
+            defeatTimer -= Math.min(elapsed, maxGameFrameSeconds);
+            if (defeatTimer <= 0) showResult(false);
+          }
           if (isGameClockRunning()) {
             // Use the same simulation step at every speed and limit catch-up after long frames.
             pendingGameSeconds += Math.min(elapsed, maxGameFrameSeconds) * gameSpeed;
@@ -4271,12 +4541,22 @@
           if (!isGameClockRunning()) pendingGameSeconds = 0;
           enemies.visuals.sync();
           souls.visuals.sync();
+          fx.sync();
+          dmgText.update(frameGameSeconds, sceneManager.camera);
+          frameGameSeconds = 0;
+          if (hitFlashLevel > 0) {
+            hitFlashLevel = Math.max(0, hitFlashLevel - elapsed * 3.2);
+            hitFlash.style.opacity = hitFlashLevel.toFixed(2);
+          }
           sceneManager.render();
 
-          hudHp.textContent = String(Math.ceil(player.hp));
-          hudRescued.textContent = String(souls.rescuedCount);
-          hudCasualty.textContent = `${souls.casualtyCount} / 30`;
-          hudKills.textContent = String(enemies.killCount);
+          if (gameState === 'PLAYING' || gameState === 'BOSS_INTRO' || gameState === 'DEFEAT') {
+            renderBossHud();
+            setText(hudHp, String(Math.ceil(player.hp)));
+            setText(hudRescued, String(souls.rescuedCount));
+            setText(hudCasualty, `${souls.casualtyCount} / 30`);
+            setText(hudKills, String(enemies.killCount));
+          }
         };
 
         playButton.disabled = false;

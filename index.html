@@ -149,12 +149,6 @@
       max-height: 60vh; overflow-y: auto; padding-right: 4px;
     }
     .howto-list strong { color: #ffd700; }
-    .title-records {
-      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
-      background: rgba(14, 18, 34, 0.84); border: 1.5px solid #d4af37; border-radius: 10px;
-      padding: 7px 8px; color: #f4f1ea; font-size: 12px; width: 100%; gap: 4px 12px;
-    }
-    .title-records span strong { color: #ffd700; }
 
     /* ===== インゲームHUD ===== */
     #hud-root {
@@ -440,12 +434,6 @@
         <div class="title-sub">40ウェーブの魔物と4柱のボスから死者たちの行進を守り抜け</div>
       </div>
       <div class="title-footer">
-        <div class="title-records" id="title-records">
-          <span>ハイスコア: <strong id="rec-score">0</strong></span>
-          <span>最高ウェーブ: <strong id="rec-wave">0</strong></span>
-          <span>ベストランク: <strong id="rec-rank">-</strong></span>
-          <span id="rec-plays-row" hidden>プレー回数: <strong id="rec-plays"></strong></span>
-        </div>
         <div class="title-btn-stack">
           <p class="startup-error" id="startup-error" role="alert" hidden></p>
           <noscript><p class="startup-error">遊ぶには、ブラウザで JavaScript を有効にしてください。</p></noscript>
@@ -3724,21 +3712,11 @@
         const rankingStatus = document.getElementById('result-ranking-status');
         const rankingRetry = document.getElementById('result-ranking-retry');
         let rankingRun = null;
-        let confirmedPlayCount = 0;
-        const refreshPlayCount = async () => {
-          try {
-            const count = await ranking.playCount();
-            confirmedPlayCount = Math.max(confirmedPlayCount, count);
-            document.getElementById('rec-plays').textContent = confirmedPlayCount.toLocaleString();
-            document.getElementById('rec-plays-row').hidden = false;
-          } catch {}
-        };
         if (ranking) {
           nameInput.value = ranking.savedName();
-          refreshPlayCount();
-          ranking.flush().then(refreshPlayCount);
+          ranking.flush();
           window.addEventListener('online', () => {
-            ranking.flush().then(refreshPlayCount);
+            ranking.flush();
             if (gameState === 'RESULT' && rankingRun?.result && !rankingRetry.hidden) sendRankingResult(rankingRun);
           });
         }
@@ -3764,13 +3742,6 @@
           } catch { return { highScore: 0, bestWave: 0, bestRank: '-' }; }
         };
         const saveRecords = (rec) => { try { localStorage.setItem('medjed_3d_records_v1', JSON.stringify(rec)); } catch {} };
-        const renderTitleRecords = () => {
-          const r = loadRecords();
-          document.getElementById('rec-score').textContent = r.highScore.toLocaleString();
-          document.getElementById('rec-wave').textContent = `${r.bestWave} / 40`;
-          document.getElementById('rec-rank').textContent = r.bestRank;
-        };
-        renderTitleRecords();
         document.addEventListener('visibilitychange', () => {
           resetFrameClock();
           if (document.hidden) input.resetAll();
@@ -3994,7 +3965,6 @@
             bestWave: Math.max(prev.bestWave, currentWave),
             bestRank: rankOrder[rank] > rankOrder[prev.bestRank] ? rank : prev.bestRank,
           });
-          renderTitleRecords();
 
           document.getElementById('res-title').textContent = cleared ? '🌄 冥界踏破・夜明けの勝利！' : '護衛失敗（GAME OVER）';
           document.getElementById('res-sub').textContent = cleared ? '大蛇アペプを打ち倒し、死者たちをオシリスの館へ導いた！' : `WAVE ${currentWave} で力尽きた`;
@@ -4207,7 +4177,7 @@
           resetFrameClock();
           startWave(1);
           rankingRun = ranking?.start(name) ?? null;
-          if (rankingRun) ranking.send(rankingRun).then(refreshPlayCount).catch(() => {});
+          if (rankingRun) ranking.send(rankingRun).catch(() => {});
         };
 
         const backToTitle = () => {

@@ -352,8 +352,9 @@
     .vol-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; margin: 8px 0; }
     .vol-row input { flex: 1; accent-color: #ffd700; }
     #pause-modal .modal-card { max-height: 100%; overflow-y: auto; }
-    .speed-row { font-size: 14px; font-weight: 700; }
-    .speed-row select {
+    .settings-select { font-size: 14px; font-weight: 700; }
+    .graphics-status:empty { display: none; }
+    .settings-select select {
       min-height: 44px; min-width: 126px; padding: 6px 10px;
       background: #141a32; color: #fff; border: 1px solid #d4af37; border-radius: 8px;
       font: inherit; font-size: 16px;
@@ -459,9 +460,15 @@
 
     <dialog id="home-settings" class="modal-card" aria-labelledby="home-settings-title">
       <h2 class="modal-title" id="home-settings-title">設定</h2>
-      <label class="vol-row speed-row">ゲーム速度
+      <label class="vol-row settings-select">ゲーム速度
         <select data-game-speed><option value="1">1倍（通常）</option><option value="1.5">1.5倍</option><option value="2">2倍</option></select>
       </label>
+      <div data-pc-graphics hidden>
+        <label class="vol-row settings-select">描画品質
+          <select data-graphics-quality aria-describedby="home-graphics-status"><option value="high">高精細</option><option value="light">軽量</option></select>
+        </label>
+        <p class="modal-body graphics-status" id="home-graphics-status" role="status"></p>
+      </div>
       <div class="vol-row"><label for="home-vol-bgm">音楽の音量</label><input type="range" id="home-vol-bgm" min="0" max="1" step="0.05" /></div>
       <div class="vol-row"><label for="home-vol-se">効果音の音量</label><input type="range" id="home-vol-se" min="0" max="1" step="0.05" /></div>
       <label class="settings-toggle"><input type="checkbox" id="home-mute" /> 音を消す</label>
@@ -557,9 +564,15 @@
       <div class="modal-card">
         <div class="modal-title">一時停止・設定</div>
         <div class="modal-body" id="pause-body"></div>
-        <label class="vol-row speed-row">ゲーム速度
+        <label class="vol-row settings-select">ゲーム速度
           <select data-game-speed><option value="1">1倍（通常）</option><option value="1.5">1.5倍</option><option value="2">2倍</option></select>
         </label>
+        <div data-pc-graphics hidden>
+          <label class="vol-row settings-select">描画品質
+            <select data-graphics-quality aria-describedby="pause-graphics-status"><option value="high">高精細</option><option value="light">軽量</option></select>
+          </label>
+          <p class="modal-body graphics-status" id="pause-graphics-status" role="status"></p>
+        </div>
         <div class="vol-row"><label for="vol-bgm">音楽の音量</label><input type="range" id="vol-bgm" min="0" max="1" step="0.05" /></div>
         <div class="vol-row"><label for="vol-se">効果音の音量</label><input type="range" id="vol-se" min="0" max="1" step="0.05" /></div>
         <div class="modal-actions" style="margin-top:14px;">
@@ -1215,38 +1228,60 @@
       const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
         || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
-      async function loadDetailedGraphics() {
+      const graphicsStorageKey = 'medjed_graphics_quality_v1';
+      function initialGraphicsQuality() {
         const mode = new URLSearchParams(location.search).get('graphics');
-        if (mode === 'light' || (isMobileDevice && mode !== 'high')) return null;
-        const load = (src) => new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.onload = resolve;
-          script.onerror = () => reject(new Error('3D model script unavailable'));
-          script.src = src;
-          document.head.append(script);
-        });
-        let timer;
-        const deadline = new Promise((_, reject) => {
-          timer = setTimeout(() => reject(new Error('3D model download timed out')), 8000);
-        });
+        if (mode === 'light' || mode === 'high') return mode;
+        if (isMobileDevice) return 'light';
         try {
-          await Promise.race([
-            Promise.all([load('./assets/pc_models_library.js?v=2'), load('./assets/pc-graphics.js?v=1')]),
-            deadline,
+          if (localStorage.getItem(graphicsStorageKey) === 'light') return 'light';
+        } catch {}
+        return 'high';
+      }
+
+      const graphicsScripts = new Map();
+      function loadGraphicsScript(src) {
+        if (!graphicsScripts.has(src)) {
+          const promise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            const finish = (error) => {
+              clearTimeout(timer);
+              script.onload = script.onerror = null;
+              if (error) {
+                graphicsScripts.delete(src);
+                script.remove();
+                reject(error);
+              } else resolve();
+            };
+            const timer = setTimeout(() => finish(new Error('3D model download timed out')), 8000);
+            script.onload = () => finish();
+            script.onerror = () => finish(new Error('3D model script unavailable'));
+            script.src = src;
+            document.head.append(script);
+          });
+          graphicsScripts.set(src, promise);
+        }
+        return graphicsScripts.get(src);
+      }
+      async function loadDetailedGraphics() {
+        try {
+          await Promise.all([
+            loadGraphicsScript('./assets/pc_models_library.js?v=2'),
+            loadGraphicsScript('./assets/pc-graphics.js?v=2'),
           ]);
-          return window.MedjedHighGraphics && window.MedjedPCModels ? window.MedjedPCModels : null;
+          if (!window.MedjedHighGraphics || !window.MedjedPCModels) {
+            throw new Error('3D model initialization unavailable');
+          }
+          return window.MedjedPCModels;
         } catch (error) {
-          console.warn('軽量モデルで起動します。', error);
+          console.warn('軽量モデルで表示します。', error);
           return null;
-        } finally {
-          clearTimeout(timer);
         }
       }
 
       class SceneManager {
         constructor(canvas, detailedModels) {
           this.isMobile = isMobileDevice;
-          this.detailedModels = detailedModels;
           this.scene = new THREE.Scene();
           this.skyColor = new THREE.Color(ENV_PHASES[0].sky);
           this.fogColor = new THREE.Color(ENV_PHASES[0].fog);
@@ -1260,21 +1295,10 @@
           this.camDistScale = 1.0; this.shakeIntensity = 0;
 
           this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !this.isMobile, powerPreference: 'high-performance' });
-          this.renderer.setPixelRatio(this.isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
-          this.renderer.setSize(w, h, false);
           this.renderer.shadowMap.enabled = true;
           this.renderer.shadowMap.type = this.isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
           this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
           this.renderer.toneMappingExposure = 1.06;
-          if (detailedModels) {
-            try {
-              this.studio = window.MedjedHighGraphics.studioReflection(this.renderer);
-              this.scene.environment = this.studio.texture;
-            } catch (error) {
-              console.warn('環境の反射を省略します。', error);
-            }
-          }
-
           this.sunLight = new THREE.DirectionalLight(ENV_PHASES[0].sunCol, ENV_PHASES[0].sunInt);
           this.sunLight.position.set(14, 30, 12); this.sunLight.castShadow = true;
           const res = this.isMobile ? 1024 : 2048;
@@ -1291,8 +1315,24 @@
           this.lightningTimer = 4.0; this.lightningFlash = 0;
           this.tmpCol = new THREE.Color(); this.tmpVec = new THREE.Vector3();
           this.buildDesertField();
+          this.setDetailedModels(detailedModels);
           this.updateCameraForViewport(w, h);
           window.addEventListener('resize', () => this.handleResize());
+        }
+        setDetailedModels(models) {
+          this.detailedModels = models;
+          if (models && this.studio === undefined) {
+            try {
+              this.studio = window.MedjedHighGraphics.studioReflection(this.renderer);
+            } catch (error) {
+              this.studio = null;
+              console.warn('環境の反射を省略します。', error);
+            }
+          }
+          this.scene.environment = models ? this.studio?.texture ?? null : null;
+          const maxPixelRatio = this.isMobile || !models ? 1.5 : 2;
+          this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
+          this.renderer.setSize(window.innerWidth, Math.max(window.innerHeight, 1), false);
         }
         setPhase(idx) { this.targetPhaseIdx = idx; }
         setSandstorm(active) { this.sandstormActive = active; }
@@ -1315,9 +1355,7 @@
           for (const z of [-15, -8, -1, 6, 11.2]) for (const side of [-1, 1]) { d.position.set(side * 13, 0, z); d.rotation.y = Math.PI / 4; d.updateMatrix(); pillars.setMatrixAt(i++, d.matrix); }
           pillars.instanceMatrix.needsUpdate = true; this.scene.add(pillars);
           // Keep the existing desert lighting when the detailed models add studio reflections.
-          if (this.studio) {
-            for (const mesh of [outer, field, lane, t1, pillars]) mesh.material.envMapIntensity = 0;
-          }
+          for (const mesh of [outer, field, lane, t1, pillars]) mesh.material.envMapIntensity = 0;
         }
         addShake(a) { this.shakeIntensity = Math.min(1.2, this.shakeIntensity + a); }
         update(dt, targetPos, isTitleMode) {
@@ -1385,31 +1423,6 @@
           this.root = new THREE.Group();
           this.root.position.set(0, 0, 8.0); this.root.rotation.y = 0;
           this.position = this.root.position;
-          if (detailedModels) {
-            const model = detailedModels.createPCMedjed();
-            this.bodyPivot = model.pivot; this.cloakUniforms = model.uniforms; this.cloakMat = model.cloakMat;
-            this.eyeGroup = model.eyeGroup; this.pupilMat = model.pupilMat;
-            [this.pupilL, this.pupilR] = model.pupils;
-            this.footL = model.footL; this.footR = model.footR;
-            this.root.add(model.group);
-          } else {
-            this.bodyPivot = new THREE.Group(); this.root.add(this.bodyPivot);
-
-            this.cloakUniforms = { uTime: { value: 0 }, uMoveSpeed: { value: 0 }, uMoveDir: { value: new THREE.Vector2(0, 0) }, uFlash: { value: 0 } };
-            const { mesh, mat } = this.createCloakBody();
-            this.cloakMesh = mesh; this.cloakMat = mat; this.bodyPivot.add(this.cloakMesh);
-
-            this.eyeGroup = new THREE.Group(); this.eyeGroup.position.set(0, 1.24, 0.34);
-            this.pupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3, emissive: new THREE.Color(0xffd700), emissiveIntensity: 0 });
-            this.glowMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
-            const eyes = this.buildEyes(this.eyeGroup);
-            this.pupilL = eyes.leftPupil; this.pupilR = eyes.rightPupil;
-            this.bodyPivot.add(this.eyeGroup);
-
-            this.footL = this.createFoot(-0.18); this.footR = this.createFoot(0.18);
-            this.root.add(this.footL, this.footR);
-          }
-
           this.guardRingMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
           this.guardRing = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.08, 8, 24), this.guardRingMat);
           this.guardRing.rotation.x = Math.PI / 2; this.guardRing.position.y = 0.85; this.guardRing.visible = false;
@@ -1420,11 +1433,59 @@
           this.guardFlashTimer = 0; this.timeSinceHit = PLAYER_CFG.regenDelaySec;
           this.isInvisible = false; this.speedMultiplier = 1.0; this.celebrate = false;
           this.tempEyePosL = new THREE.Vector3(); this.tempEyePosR = new THREE.Vector3();
+          this.setDetailedModels(detailedModels);
           scene.add(this.root);
+        }
+        setDetailedModels(models) {
+          const rig = models
+            ? (this.detailedRig ??= this.createDetailedRig(models))
+            : (this.lightRig ??= this.createLightRig());
+          const previous = this.rig;
+          if (previous === rig) return;
+          if (previous) {
+            rig.bodyPivot.position.copy(previous.bodyPivot.position);
+            rig.bodyPivot.rotation.copy(previous.bodyPivot.rotation);
+            rig.footL.rotation.copy(previous.footL.rotation);
+            rig.footR.rotation.copy(previous.footR.rotation);
+            rig.eyeGroup.scale.copy(previous.eyeGroup.scale);
+            rig.pupilL.scale.copy(previous.pupilL.scale);
+            rig.pupilR.scale.copy(previous.pupilR.scale);
+            rig.pupilMat.emissiveIntensity = previous.pupilMat.emissiveIntensity;
+            if (rig.glowMat) rig.glowMat.opacity = 0.75 * this.eyeWidenAmount;
+            for (const key of ['uTime', 'uMoveSpeed', 'uFlash']) {
+              rig.cloakUniforms[key].value = previous.cloakUniforms[key].value;
+            }
+            rig.cloakUniforms.uMoveDir?.value.set(0, this.currentSpeedRatio);
+            this.root.remove(previous.group);
+          }
+          this.rig = rig;
+          this.root.add(rig.group);
+          this.setInvisible(this.isInvisible, this.speedMultiplier);
+        }
+        createDetailedRig(models) {
+          const model = models.createPCMedjed();
+          return {
+            group: model.group, bodyPivot: model.pivot, cloakUniforms: model.uniforms, cloakMat: model.cloakMat,
+            eyeGroup: model.eyeGroup, pupilMat: model.pupilMat, pupilL: model.pupils[0], pupilR: model.pupils[1],
+            footL: model.footL, footR: model.footR,
+          };
+        }
+        createLightRig() {
+          const group = new THREE.Group(), bodyPivot = new THREE.Group(), eyeGroup = new THREE.Group();
+          const cloakUniforms = { uTime: { value: 0 }, uMoveSpeed: { value: 0 }, uMoveDir: { value: new THREE.Vector2() }, uFlash: { value: 0 } };
+          const { mesh, mat: cloakMat } = this.createCloakBody(cloakUniforms);
+          const pupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3, emissive: 0xffd700, emissiveIntensity: 0 });
+          const glowMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+          eyeGroup.position.set(0, 1.24, 0.34);
+          const { leftPupil: pupilL, rightPupil: pupilR } = this.buildEyes(eyeGroup, pupilMat, glowMat);
+          bodyPivot.add(mesh, eyeGroup);
+          const footL = this.createFoot(-0.18), footR = this.createFoot(0.18);
+          group.add(bodyPivot, footL, footR);
+          return { group, bodyPivot, cloakUniforms, cloakMat, eyeGroup, pupilMat, glowMat, pupilL, pupilR, footL, footR };
         }
         reset() {
           this.hp = PLAYER_CFG.maxHp; this.position.set(0, 0, 8.0); this.root.rotation.y = Math.PI;
-          this.bodyPivot.position.set(0, 0, 0); this.bodyPivot.rotation.set(0, 0, 0);
+          this.rig.bodyPivot.position.set(0, 0, 0); this.rig.bodyPivot.rotation.set(0, 0, 0);
           this.currentSpeedRatio = 0; this.recoilTimer = 0; this.eyeWidenAmount = 0;
           this.flashTimer = 0; this.invulnTimer = 0; this.guardFlashTimer = 0; this.celebrate = false;
           this.guardRing.visible = false;
@@ -1432,8 +1493,8 @@
         }
         setInvisible(active, speedMult) {
           this.isInvisible = active; this.speedMultiplier = active ? speedMult : 1.0;
-          this.cloakMat.transparent = active; this.cloakMat.opacity = active ? 0.25 : 1.0;
-          this.cloakMat.emissive.setHex(active ? 0x00e5ff : 0x000000); this.cloakMat.emissiveIntensity = active ? 0.45 : 0;
+          this.rig.cloakMat.transparent = active; this.rig.cloakMat.opacity = active ? 0.25 : 1.0;
+          this.rig.cloakMat.emissive.setHex(active ? 0x00e5ff : 0x000000); this.rig.cloakMat.emissiveIntensity = active ? 0.45 : 0;
         }
         triggerReflectFlash() { this.flashTimer = PLAYER_CFG.hitFlashSec; this.guardFlashTimer = 0.25; this.guardRing.visible = true; }
         takeDamage(amount) {
@@ -1442,9 +1503,9 @@
           this.flashTimer = PLAYER_CFG.hitFlashSec; this.timeSinceHit = 0; return true;
         }
         update(dt, inputX, inputZ, inputMag) {
-          this.elapsed += dt; this.cloakUniforms.uTime.value = this.elapsed;
+          this.elapsed += dt; this.rig.cloakUniforms.uTime.value = this.elapsed;
           if (this.celebrate) {
-            this.bodyPivot.position.set(0, Math.abs(Math.sin(this.elapsed * 6.0)) * 0.85, 0);
+            this.rig.bodyPivot.position.set(0, Math.abs(Math.sin(this.elapsed * 6.0)) * 0.85, 0);
             this.root.rotation.y += dt * 2.5;
             return;
           }
@@ -1458,32 +1519,32 @@
             this.root.rotation.y += diff * Math.min(1, dt * 14);
           }
           this.currentSpeedRatio += (inputMag - this.currentSpeedRatio) * Math.min(1, dt * 10);
-          this.cloakUniforms.uMoveSpeed.value = this.currentSpeedRatio;
-          this.cloakUniforms.uMoveDir?.value.set(0, this.currentSpeedRatio);
+          this.rig.cloakUniforms.uMoveSpeed.value = this.currentSpeedRatio;
+          this.rig.cloakUniforms.uMoveDir?.value.set(0, this.currentSpeedRatio);
 
           let recoilZ = 0;
           if (this.recoilTimer > 0) { this.recoilTimer = Math.max(0, this.recoilTimer - dt); recoilZ = -0.12 * (this.recoilTimer / 0.15); }
           let jitterX = 0;
-          if (this.flashTimer > 0) { this.flashTimer = Math.max(0, this.flashTimer - dt); this.cloakUniforms.uFlash.value = this.flashTimer / 0.12; jitterX = Math.sin(this.elapsed * 95) * 0.045; }
-          else this.cloakUniforms.uFlash.value = 0;
+          if (this.flashTimer > 0) { this.flashTimer = Math.max(0, this.flashTimer - dt); this.rig.cloakUniforms.uFlash.value = this.flashTimer / 0.12; jitterX = Math.sin(this.elapsed * 95) * 0.045; }
+          else this.rig.cloakUniforms.uFlash.value = 0;
           if (this.guardFlashTimer > 0) {
             this.guardFlashTimer = Math.max(0, this.guardFlashTimer - dt);
             const t = this.guardFlashTimer / 0.25; this.guardRingMat.opacity = t * 0.9; this.guardRing.scale.setScalar(1 + (1 - t) * 0.7);
             if (this.guardFlashTimer <= 0) this.guardRing.visible = false;
           }
-          this.bodyPivot.position.set(jitterX, Math.sin(this.elapsed * Math.PI) * 0.05, recoilZ);
-          this.bodyPivot.rotation.x = this.currentSpeedRatio * PLAYER_CFG.maxForwardLeanRad;
+          this.rig.bodyPivot.position.set(jitterX, Math.sin(this.elapsed * Math.PI) * 0.05, recoilZ);
+          this.rig.bodyPivot.rotation.x = this.currentSpeedRatio * PLAYER_CFG.maxForwardLeanRad;
 
           if (this.currentSpeedRatio > 0.05) {
             this.walkPhase += dt * 10 * (0.4 + 0.6 * this.currentSpeedRatio);
             const sw = Math.sin(this.walkPhase) * PLAYER_CFG.footSwingMaxRad * this.currentSpeedRatio;
-            this.footL.rotation.x = sw; this.footR.rotation.x = -sw;
-          } else { this.footL.rotation.x *= Math.max(0, 1 - dt * 12); this.footR.rotation.x *= Math.max(0, 1 - dt * 12); }
+            this.rig.footL.rotation.x = sw; this.rig.footR.rotation.x = -sw;
+          } else { this.rig.footL.rotation.x *= Math.max(0, 1 - dt * 12); this.rig.footR.rotation.x *= Math.max(0, 1 - dt * 12); }
 
-          this.eyeGroup.scale.set(1, 1 + 0.3 * this.eyeWidenAmount, 1);
-          this.pupilL.scale.setScalar(1 + 0.4 * this.eyeWidenAmount); this.pupilR.scale.setScalar(1 + 0.4 * this.eyeWidenAmount);
-          this.pupilMat.emissiveIntensity = 3.0 * this.eyeWidenAmount;
-          if (this.glowMat) this.glowMat.opacity = 0.75 * this.eyeWidenAmount;
+          this.rig.eyeGroup.scale.set(1, 1 + 0.3 * this.eyeWidenAmount, 1);
+          this.rig.pupilL.scale.setScalar(1 + 0.4 * this.eyeWidenAmount); this.rig.pupilR.scale.setScalar(1 + 0.4 * this.eyeWidenAmount);
+          this.rig.pupilMat.emissiveIntensity = 3.0 * this.eyeWidenAmount;
+          if (this.rig.glowMat) this.rig.glowMat.opacity = 0.75 * this.eyeWidenAmount;
 
           if (this.invulnTimer > 0) this.invulnTimer = Math.max(0, this.invulnTimer - dt);
           this.timeSinceHit += dt;
@@ -1497,10 +1558,10 @@
         }
         getEyeWorldPositions() {
           this.root.updateMatrixWorld(true);
-          this.pupilL.getWorldPosition(this.tempEyePosL); this.pupilR.getWorldPosition(this.tempEyePosR);
+          this.rig.pupilL.getWorldPosition(this.tempEyePosL); this.rig.pupilR.getWorldPosition(this.tempEyePosR);
           return { left: this.tempEyePosL, right: this.tempEyePosR };
         }
-        createCloakBody() {
+        createCloakBody(uniforms) {
           const pts = [];
           for (let i = 0; i <= 22; i++) {
             const u = i / 22; const y = 0.26 + 1.44 * u;
@@ -1510,8 +1571,8 @@
           const lathe = new THREE.LatheGeometry(pts, 28); lathe.computeVertexNormals();
           const mat = new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.85, metalness: 0.02, side: THREE.DoubleSide });
           mat.onBeforeCompile = (shader) => {
-            shader.uniforms.uTime = this.cloakUniforms.uTime; shader.uniforms.uMoveSpeed = this.cloakUniforms.uMoveSpeed;
-            shader.uniforms.uMoveDir = this.cloakUniforms.uMoveDir; shader.uniforms.uFlash = this.cloakUniforms.uFlash;
+            shader.uniforms.uTime = uniforms.uTime; shader.uniforms.uMoveSpeed = uniforms.uMoveSpeed;
+            shader.uniforms.uMoveDir = uniforms.uMoveDir; shader.uniforms.uFlash = uniforms.uFlash;
             shader.vertexShader = shader.vertexShader
               .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uMoveSpeed;\nuniform vec2 uMoveDir;')
               .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -1527,7 +1588,7 @@
           const mesh = new THREE.Mesh(lathe, mat); mesh.castShadow = true; mesh.receiveShadow = false;
           return { mesh, mat };
         }
-        buildEyes(eyeGroup) {
+        buildEyes(eyeGroup, pupilMat, glowMat) {
           const bMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
           const wMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
           const makeEye = (side) => {
@@ -1536,8 +1597,8 @@
             const tail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.025, 0.02), bMat); tail.position.set(side * 0.14, 0.01, -0.01); tail.rotation.z = side * -0.15; g.add(tail);
             const brow = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.024, 0.025), bMat); brow.position.set(0, 0.105, 0.01); brow.rotation.z = side * -0.08; g.add(brow);
             const wGeo = new THREE.SphereGeometry(0.095, 12, 10); wGeo.scale(1.16, 0.64, 0.38); const wm = new THREE.Mesh(wGeo, wMat); wm.position.z = 0.015; g.add(wm);
-            const pGeo = new THREE.SphereGeometry(0.06, 12, 10); pGeo.scale(1, 1, 0.6); const pm = new THREE.Mesh(pGeo, this.pupilMat); pm.position.z = 0.045; g.add(pm);
-            const fl = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), this.glowMat); fl.position.z = 0.06; g.add(fl);
+            const pGeo = new THREE.SphereGeometry(0.06, 12, 10); pGeo.scale(1, 1, 0.6); const pm = new THREE.Mesh(pGeo, pupilMat); pm.position.z = 0.045; g.add(pm);
+            const fl = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), glowMat); fl.position.z = 0.06; g.add(fl);
             eyeGroup.add(g); return pm;
           };
           return { leftPupil: makeEye(-1), rightPupil: makeEye(1) };
@@ -1624,16 +1685,20 @@
           this.isChargingCancelable = false;
           for (const b of this.boulders) { b.active = false; b.mesh.visible = false; }
           this.sceneManager.setSandstorm(false);
-          if (this.detailedModel) {
-            const { disposeModel } = window.MedjedHighGraphics;
-            disposeModel(this.detailedModel.group);
-            for (const clone of this.setClones) disposeModel(clone);
+          this.clearBody();
+          for (const clone of this.setClones) {
+            window.MedjedHighGraphics?.disposeModel(clone);
+            this.scene.remove(clone);
           }
-          this.detailedModel = null;
+          this.setClones = [];
+        }
+
+        clearBody() {
+          window.MedjedHighGraphics?.disposeModel(this.group);
           this.group.clear();
-          for (const clone of this.setClones) this.scene.remove(clone);
+          this.detailedModel = null;
           this.sphinxHead = null;
-          this.setClones = []; this.apepSegments = []; this.apepCores = []; this.bossMaterials = [];
+          this.apepSegments = []; this.apepCores = []; this.bossMaterials = [];
         }
 
         spawn(type) {
@@ -1644,37 +1709,68 @@
           if (type === 'ammit') {
             this.name = 'アメミット（喰らい尽くす者）'; this.sub = '突進準備中にダメージを与えて怯ませろ！';
             this.maxHp = 6500; this.hp = 6500; this.x = 0; this.z = -11; this.radius = 2.1;
-            if (!this.sceneManager.detailedModels) this.buildAmmit();
           } else if (type === 'set') {
             this.name = 'セト（嵐と混沌の神）'; this.sub = '砂嵐と分身を見破り、黄金の杖を持つ本体を撃て！';
             this.maxHp = 22000; this.hp = 22000; this.x = 0; this.z = -9; this.radius = 1.8;
-            this.buildSet(!this.sceneManager.detailedModels);
+            for (let i = 0; i < 2; i++) {
+              const clone = this.createSetBody(true);
+              clone.visible = false;
+              this.scene.add(clone);
+              this.setClones.push(clone);
+            }
           } else if (type === 'sphinx') {
             this.name = '大スフィンクス（守護石像）'; this.sub = '薙ぎ払いレーザーと死者レーンへの落石を阻止せよ！';
             this.maxHp = 60000; this.hp = 60000; this.x = 0; this.z = -11; this.radius = 2.8;
-            if (!this.sceneManager.detailedModels) this.buildSphinx();
           } else {
             this.name = '大蛇アペプ（闇の混沌蛇）'; this.sub = '胴体の3つの赤紫コアを破壊し、闇の軽減を打ち破れ！';
             this.maxHp = 180000; this.hp = 180000; this.x = 0; this.z = -8; this.radius = 2.6;
-            if (!this.sceneManager.detailedModels) this.buildApep();
           }
-          this.group.position.set(this.x, 0, this.z);
-          if (this.sceneManager.detailedModels) this.buildDetailedModel(type);
+          this.group.position.set(this.x, 0, type === 'apep' ? 0 : this.z);
+          this.setDetailedModels(this.sceneManager.detailedModels);
         }
 
-        buildDetailedModel(type) {
-          const model = window.MedjedHighGraphics.createBoss(this.sceneManager.detailedModels, type);
+        setDetailedModels(models) {
+          if (!this.active) return;
+          const oldCores = this.apepCores;
+          const oldSegments = this.apepSegments;
+          const headYaw = this.sphinxHead?.rotation.y ?? 0;
+          const headOffset = this.sphinxHead ? this.sphinxHead.position.y - this.sphinxHeadBaseY : 0;
+          this.clearBody();
+
+          if (models) this.buildDetailedModel(models);
+          else if (this.type === 'ammit') this.buildAmmit();
+          else if (this.type === 'set') this.group.add(this.createSetBody(false));
+          else if (this.type === 'sphinx') this.buildSphinx();
+          else this.buildApep();
+
+          if (this.sphinxHead) {
+            this.sphinxHead.rotation.y = headYaw;
+            this.sphinxHead.position.y += headOffset;
+          }
+          if (this.type === 'apep') {
+            if (oldSegments.length) this.apepSegments.forEach((segment, i) => segment.position.copy(oldSegments[i].position));
+            else this.positionApepSegments();
+            this.apepCores.forEach((core, i) => {
+              if (!oldCores[i]) return;
+              core.hp = oldCores[i].hp;
+              core.alive = oldCores[i].alive;
+              core.mesh.visible = core.alive;
+            });
+          }
+        }
+
+        buildDetailedModel(models) {
+          const type = this.type;
+          const model = window.MedjedHighGraphics.createBoss(models, type);
           this.detailedModel = model;
           this.group.add(model.group);
           if (type === 'sphinx') {
             this.sphinxHead = model.head;
             this.sphinxHeadBaseY = model.head.position.y;
           } else if (type === 'apep') {
-            this.group.position.set(0, 0, 0);
             this.apepSegments = model.segs;
             this.apepCores = model.cores.map(({ segIndex, target }) =>
               ({ segIndex, mesh: target, hp: 28000, maxHp: 28000, alive: true }));
-            this.positionApepSegments();
           }
         }
 
@@ -1702,27 +1798,22 @@
           }
         }
 
-        buildSet(showBody = true) {
-          const armor = this.trackMat(new THREE.MeshStandardMaterial({ color: 0x1a1426, metalness: 0.45, roughness: 0.4, flatShading: true }));
-          const gold = this.trackMat(new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.7, roughness: 0.3 }));
-          const makeBody = (isClone) => {
-            const g = new THREE.Group();
-            const m = isClone ? new THREE.MeshBasicMaterial({ color: 0x7744bb, transparent: true, opacity: 0.42 }) : armor;
-            const t = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.45, 2.0, 6), m); t.position.y = 1.6; g.add(t);
-            const h = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.75, 0.9), m); h.position.set(0, 2.9, 0.1); g.add(h);
-            for (const s of [-1, 1]) {
-              const ear = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.95, 0.18), m); ear.position.set(s * 0.26, 3.65, -0.05); g.add(ear);
-            }
-            const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.0, 6), isClone ? m : gold);
-            staff.position.set(0.95, 1.8, 0.35); g.add(staff);
-            const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.26, 0), new THREE.MeshBasicMaterial({ color: isClone ? 0x6633aa : 0xffd700 }));
-            gem.position.set(0.95, 3.35, 0.35); g.add(gem);
-            return g;
-          };
-          if (showBody) this.group.add(makeBody(false));
-          for (let i = 0; i < 2; i++) {
-            const c = makeBody(true); c.visible = false; this.scene.add(c); this.setClones.push(c);
+        createSetBody(isClone) {
+          const g = new THREE.Group();
+          const m = isClone ? new THREE.MeshBasicMaterial({ color: 0x7744bb, transparent: true, opacity: 0.42 })
+            : this.trackMat(new THREE.MeshStandardMaterial({ color: 0x1a1426, metalness: 0.45, roughness: 0.4, flatShading: true }));
+          const t = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.45, 2.0, 6), m); t.position.y = 1.6; g.add(t);
+          const h = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.75, 0.9), m); h.position.set(0, 2.9, 0.1); g.add(h);
+          for (const s of [-1, 1]) {
+            const ear = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.95, 0.18), m); ear.position.set(s * 0.26, 3.65, -0.05); g.add(ear);
           }
+          const gold = isClone ? m
+            : this.trackMat(new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.7, roughness: 0.3 }));
+          const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.0, 6), gold);
+          staff.position.set(0.95, 1.8, 0.35); g.add(staff);
+          const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.26, 0), new THREE.MeshBasicMaterial({ color: isClone ? 0x6633aa : 0xffd700 }));
+          gem.position.set(0.95, 3.35, 0.35); g.add(gem);
+          return g;
         }
 
         buildSphinx() {
@@ -2091,22 +2182,79 @@
       // ============================================================
       // SoulMarchManager / ProjectileManager / EnemyManager / GemManager
       // ============================================================
+      class CrowdRendering {
+        constructor(scene, meshes, actors, soul, detailedModels) {
+          this.scene = scene;
+          this.meshes = meshes;
+          this.actors = actors;
+          this.soul = soul;
+          this.dummy = new THREE.Object3D();
+          this.setDetailedModels(detailedModels);
+        }
+        setDetailedModels(models) {
+          if (models && !this.detailCache) {
+            this.detailCache = new window.MedjedHighGraphics.CrowdModels(this.scene, models, this.actors.length, this.soul);
+          }
+          this.details = models ? this.detailCache : null;
+          this.detailCache?.setVisible(Boolean(models));
+          for (const { mesh } of Object.values(this.meshes)) {
+            mesh.material.colorWrite = !models;
+            mesh.material.depthWrite = !models;
+          }
+          this.markChanged();
+        }
+        markChanged(dt = 0) {
+          this.dirty = true;
+          if (this.details) {
+            this.details.dirty = true;
+            this.details.elapsed += dt;
+          }
+        }
+        sync() {
+          if (!this.dirty) return;
+          this.dirty = false;
+          for (const { mesh } of Object.values(this.meshes)) mesh.count = 0;
+          for (const actor of this.actors) {
+            if (!actor.active) continue;
+            const part = this.meshes[actor.type], index = part.mesh.count;
+            if (index >= part.cap) continue;
+            this.dummy.position.set(actor.x, 0, actor.z);
+            this.dummy.rotation.set(0, this.soul ? Math.PI / 2 : actor.rotY, 0);
+            this.dummy.scale.setScalar(actor.elite ? 1.5 : 1);
+            this.dummy.updateMatrix();
+            part.mesh.setMatrixAt(index, this.dummy.matrix);
+            part.aA.setX(index, actor.animPhase);
+            part.fA.setX(index, actor.flashTimer / (this.soul ? 0.14 : 0.12));
+            if (!this.soul) {
+              part.tA.setX(index, Math.min(1, actor.attackTimer / 0.72));
+              part.eA.setX(index, actor.elite ? 1 : 0);
+            }
+            part.mesh.count++;
+          }
+          for (const { mesh, aA, fA, tA, eA } of Object.values(this.meshes)) {
+            mesh.instanceMatrix.needsUpdate = true;
+            aA.needsUpdate = true;
+            fA.needsUpdate = true;
+            if (tA) tA.needsUpdate = true;
+            if (eA) eA.needsUpdate = true;
+          }
+          this.details?.sync(this.actors);
+        }
+      }
+
       class SoulMarchManager {
         constructor(scene, cb, detailedModels) {
-          this.cb = cb; this.capacity = 60;
+          this.cb = cb;
           this.souls = Array.from({ length: 60 }, (_, index) => ({ index, active: false, type: 'general', x: 0, z: 0, hp: 30, maxHp: 30, speed: 1.8, animPhase: 0, flashTimer: 0, tookDamage: false }));
           this.rescuedCount = 0; this.rescuedPts = 0; this.casualtyCount = 0;
-          this.spawnTimer = 0.4; this.relayTimer = 15.0; this.dummy = new THREE.Object3D();
+          this.spawnTimer = 0.4; this.relayTimer = 15.0;
           this.meshes = {
             general: this.makeInst(this.bGen(), 48, true),
             priest:  this.makeInst(this.bPri(), 20, true),
             coffin:  this.makeInst(this.bCof(), 8, false),
           };
-          this.details = detailedModels ? new window.MedjedHighGraphics.CrowdModels(scene, detailedModels, this.capacity, true) : null;
-          for (const { mesh } of Object.values(this.meshes)) {
-            if (this.details) { mesh.material.colorWrite = false; mesh.material.depthWrite = false; }
-            scene.add(mesh);
-          }
+          for (const { mesh } of Object.values(this.meshes)) scene.add(mesh);
+          this.visuals = new CrowdRendering(scene, this.meshes, this.souls, true, detailedModels);
           this.reset();
         }
         makeInst(geo, cap, walk) {
@@ -2124,7 +2272,7 @@
         }
         reset() {
           for (const s of this.souls) s.active = false;
-          if (this.details) this.details.dirty = true;
+          this.visuals.markChanged();
           this.rescuedCount = 0; this.rescuedPts = 0; this.casualtyCount = 0; this.spawnTimer = 0.4; this.relayTimer = 15.0;
           this.spawnSoul('general', -10.5, 13.0); this.spawnSoul('priest', -7.2, 13.8); this.spawnSoul('general', -4.2, 12.8);
         }
@@ -2132,7 +2280,7 @@
           const sp = SOUL_TYPES[type];
           const s = this.souls.find((i) => !i.active); if (!s) return null;
           s.active = true; s.type = type; s.x = x; s.z = z; s.hp = sp.hp; s.maxHp = sp.hp; s.speed = sp.speed; s.animPhase = Math.random() * 6.28; s.flashTimer = 0; s.tookDamage = false;
-          if (this.details) this.details.dirty = true;
+          this.visuals.markChanged();
           if (type === 'coffin') this.cb.onCoffinSpawn();
           return s;
         }
@@ -2152,12 +2300,12 @@
           soul.hp -= this.isNearPriest(soul.x, soul.z) ? remainingDamage * 0.8 : remainingDamage;
           soul.tookDamage = true;
           soul.flashTimer = 0.14;
-          if (this.details) this.details.dirty = true;
+          this.visuals.markChanged();
           if (soul.hp <= 0) { soul.active = false; this.casualtyCount++; this.cb.onCasualty(); return true; }
           return false;
         }
         update(dt, barrier, gems) {
-          if (this.details) this.details.elapsed += dt;
+          this.visuals.markChanged(dt);
           this.spawnTimer -= dt;
           if (this.spawnTimer <= 0) {
             this.spawnTimer = 1.9;
@@ -2166,7 +2314,6 @@
           }
           this.relayTimer -= dt;
           if (this.relayTimer <= 0) { this.relayTimer = 15.0; this.cb.onExpRelay(); }
-          const cnt = { general: 0, priest: 0, coffin: 0 };
           for (const s of this.souls) {
             if (!s.active) continue;
             let sm = barrier ? barrier.getSoulSpeedMultiplier(s.x) : 1.0;
@@ -2180,13 +2327,7 @@
               if (s.type === 'coffin') this.cb.onCoffinRescued(!s.tookDamage);
               continue;
             }
-            const sl = this.meshes[s.type], idx = cnt[s.type];
-            if (idx >= sl.cap) continue;
-            this.dummy.position.set(s.x, 0, s.z); this.dummy.rotation.set(0, Math.PI / 2, 0); this.dummy.scale.setScalar(1); this.dummy.updateMatrix();
-            sl.mesh.setMatrixAt(idx, this.dummy.matrix); sl.aA.setX(idx, s.animPhase); sl.fA.setX(idx, s.flashTimer / 0.14);
-            cnt[s.type]++;
           }
-          for (const k of ['general', 'priest', 'coffin']) { const sl = this.meshes[k]; sl.mesh.count = cnt[k]; sl.mesh.instanceMatrix.needsUpdate = true; sl.aA.needsUpdate = true; sl.fA.needsUpdate = true; }
         }
         bGen() {
           const p = [];
@@ -2291,7 +2432,7 @@
       class EnemyManager {
         constructor(scene, onKilled, dmgText, projectiles, recordDmg, detailedModels) {
           this.onKilled = onKilled; this.dmgText = dmgText; this.projectiles = projectiles; this.recordDmg = recordDmg;
-          this.killCount = 0; this.killPts = 0; this.dummy = new THREE.Object3D();
+          this.killCount = 0; this.killPts = 0;
           this.enemies = Array.from({ length: 180 }, (_, i) => ({
             index: i, active: false, type: 'jackal', elite: false, x: 0, z: 0, rotY: 0, hp: 30, maxHp: 30, speed: 2.6, attack: 8, radius: 0.5, exp: 10, pt: 20,
             animPhase: 0, flashTimer: 0, attackTimer: 0, attackHitDealt: false, targetSoul: null,
@@ -2299,13 +2440,11 @@
           }));
           this.meshes = {};
           const caps = { jackal: 90, mummy: 70, scarab: 90, scorpion: 60, archer: 60, ushabti: 50, wisp: 70 };
-          this.details = detailedModels ? new window.MedjedHighGraphics.CrowdModels(scene, detailedModels, this.enemies.length, false) : null;
           for (const k of ENEMY_KEYS) {
             this.meshes[k] = this.makeInst(this.bGeo(k), caps[k], k === 'wisp');
-            const mesh = this.meshes[k].mesh;
-            if (this.details) { mesh.material.colorWrite = false; mesh.material.depthWrite = false; }
-            scene.add(mesh);
+            scene.add(this.meshes[k].mesh);
           }
+          this.visuals = new CrowdRendering(scene, this.meshes, this.enemies, false, detailedModels);
           this.reset();
         }
         makeInst(geo, cap, isWisp) {
@@ -2327,15 +2466,14 @@
         }
         reset() {
           for (const e of this.enemies) e.active = false;
-          if (this.details) this.details.dirty = true;
+          this.visuals.markChanged();
           this.killCount = 0; this.killPts = 0;
-          for (const { mesh } of Object.values(this.meshes)) mesh.count = 0;
         }
         getActiveCount() { let c = 0; for (const e of this.enemies) if (e.active) c++; return c; }
         spawn(type, x, z, w, elite) {
           const sp = ENEMY_SPECS[type];
           const e = this.enemies.find((i) => !i.active); if (!e) return null;
-          if (this.details) this.details.dirty = true;
+          this.visuals.markChanged();
           e.active = true; e.type = type; e.elite = Boolean(elite); e.x = x; e.z = z; e.rotY = 0;
           e.hp = Math.round(sp.hp * waveHpScale(w) * (elite ? 4 : 1)); e.maxHp = e.hp;
           e.speed = sp.speed; e.attack = Math.round(sp.atk * waveAtkScale(w) * (elite ? 1.5 : 1));
@@ -2368,15 +2506,15 @@
           if (opts.globalBuffMult) m *= opts.globalBuffMult;
           const dmg = Math.max(1, Math.round(baseDmg * m));
           e.hp -= dmg; e.flashTimer = 0.12;
-          if (this.details) this.details.dirty = true;
+          this.visuals.markChanged();
           if (opts.skillId) this.recordDmg(opts.skillId, dmg);
           if (!opts.silentPopup) this.dmgText.spawn(e.x, e.z, opts.execute ? '処刑!' : String(dmg), opts.awakened || opts.execute ? 'awaken' : crit ? 'crit' : '');
           if (e.hp <= 0) { e.active = false; this.killCount++; this.killPts += e.pt; this.onKilled(e); return true; }
           return false;
         }
         update(dt, souls, grid, barrier, player) {
-          if (this.details) this.details.elapsed += dt;
-          grid.clear(); const cnt = {}; for (const k of ENEMY_KEYS) cnt[k] = 0;
+          this.visuals.markChanged(dt);
+          grid.clear();
           for (const e of this.enemies) {
             if (!e.active) continue;
             const sp = ENEMY_SPECS[e.type];
@@ -2439,12 +2577,7 @@
               }
             }
             grid.insert(e.index, e.x, e.z);
-            const sl = this.meshes[e.type], idx = cnt[e.type]; if (idx >= sl.cap) continue;
-            this.dummy.position.set(e.x, 0, e.z); this.dummy.rotation.set(0, e.rotY, 0); this.dummy.scale.setScalar(e.elite ? 1.5 : 1); this.dummy.updateMatrix();
-            sl.mesh.setMatrixAt(idx, this.dummy.matrix); sl.aA.setX(idx, e.animPhase); sl.tA.setX(idx, e.attackTimer > 0 ? Math.min(1, e.attackTimer / 0.72) : 0);
-            sl.fA.setX(idx, e.flashTimer / 0.12); sl.eA.setX(idx, e.elite ? 1 : 0); cnt[e.type]++;
           }
-          for (const k of ENEMY_KEYS) { const sl = this.meshes[k]; sl.mesh.count = cnt[k]; sl.mesh.instanceMatrix.needsUpdate = true; sl.aA.needsUpdate = true; sl.tA.needsUpdate = true; sl.fA.needsUpdate = true; sl.eA.needsUpdate = true; }
         }
         bGeo(type) {
           const p = [];
@@ -2627,23 +2760,20 @@
           this.nileCd = 2.0; this.nileActive = false; this.nileX = 0; this.nileZ = 12; this.nileWidth = 8; this.nileHitSet = new Set();
           this.nileMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1.1, 1.4), new THREE.MeshBasicMaterial({ color: 0x00c8ff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
           this.nileMesh.position.y = 0.55; this.nileMesh.visible = false; scene.add(this.nileMesh);
-          this.detailEffects = sceneManager.detailedModels
-            ? window.MedjedHighGraphics.useDetailedSkills(sceneManager.detailedModels, this) : null;
+          this.setDetailedModels(sceneManager.detailedModels);
           this.reset();
+        }
+
+        setDetailedModels(models) {
+          if (models && !this.detailEffects) {
+            this.detailEffects = window.MedjedHighGraphics.createDetailedSkills(models, this);
+          }
+          this.detailEffects?.setEnabled(Boolean(models));
         }
 
         // 高品質エジプト太陽の舟（結合ジオメトリ化により1隻2ドローコールへ最適化）
         buildSolarBarqueModel(scale) {
           const g = new THREE.Group();
-          if (this.sceneManager.detailedModels) {
-            const model = window.MedjedHighGraphics.buildSolarBarque(this.sceneManager.detailedModels);
-            model.group.position.y = -0.42;
-            model.group.scale.setScalar(0.55);
-            g.add(model.group);
-            g.scale.setScalar(scale);
-            g.userData.animate = model.update;
-            return g;
-          }
           const parts = [];
           const hullCurve = new THREE.CatmullRomCurve3([
             new THREE.Vector3(-0.78, 0.38, 0),
@@ -3054,7 +3184,6 @@
             const bx = player.position.x + Math.cos(a) * rad, bz = player.position.z + Math.sin(a) * rad;
             b.position.set(bx, 0.85, bz);
             b.rotation.y = -a + Math.PI / 2;
-            b.userData.animate?.(dt);
             projectiles.clearInRadius(bx, bz, 1.15);
             if (boss.active) {
               boss.damageBouldersInRadius(bx, bz, 1.3, cfg.dmg[idx]);
@@ -3084,7 +3213,6 @@
             } else {
               this.giantBarqueX += 18 * dt;
               this.giantBarque.position.set(this.giantBarqueX, 0.9, this.giantBarqueZ);
-              this.giantBarque.userData.animate?.(dt);
               projectiles.clearInRadius(this.giantBarqueX, this.giantBarqueZ, 2.8);
               if (boss.active && !this.giantHitSet.has('boss') && (boss.x - this.giantBarqueX) ** 2 + (boss.z - this.giantBarqueZ) ** 2 <= (boss.radius + 2.4) ** 2) {
                 this.giantHitSet.add('boss'); this.hitBoss(boss, 350, 'solar_barque', true, false, 1, buff);
@@ -3297,7 +3425,8 @@
         const audio = new AudioManager();
         let sceneManager;
         try {
-          sceneManager = new SceneManager(canvas, await loadDetailedGraphics());
+          const models = initialGraphicsQuality() === 'high' ? await loadDetailedGraphics() : null;
+          sceneManager = new SceneManager(canvas, models);
         } catch (error) {
           console.error(error);
           showStartupError('3D画面を開けませんでした。ブラウザを更新するか、別のブラウザでお試しください。');
@@ -3876,6 +4005,51 @@
             try { localStorage.setItem(gameSpeedKey, String(gameSpeed)); } catch {}
           });
         }
+        if (!isMobileDevice) {
+          const qualityControls = document.querySelectorAll('select[data-graphics-quality]');
+          const qualityStatuses = document.querySelectorAll('.graphics-status');
+          const syncQualityControls = (quality, message = '') => {
+            qualityControls.forEach((control) => { control.value = quality; });
+            qualityStatuses.forEach((status) => { status.textContent = message; });
+          };
+          const currentQuality = () => sceneManager.detailedModels ? 'high' : 'light';
+          let qualityRequest = 0;
+          syncQualityControls(currentQuality());
+          document.querySelectorAll('[data-pc-graphics]').forEach((row) => { row.hidden = false; });
+          qualityControls.forEach((control) => {
+            control.addEventListener('change', async () => {
+              const quality = control.value;
+              if (quality !== 'high' && quality !== 'light') return;
+              const request = ++qualityRequest;
+              let models = null;
+              if (quality === 'high') {
+                syncQualityControls(quality, '高精細モデルを読み込んでいます。');
+                models = await loadDetailedGraphics();
+                if (request !== qualityRequest) return;
+                if (!models) {
+                  syncQualityControls(currentQuality(), '高精細モデルを読み込めませんでした。');
+                  return;
+                }
+              }
+              if (quality !== currentQuality()) {
+                sceneManager.setDetailedModels(models);
+                player.setDetailedModels(models);
+                souls.visuals.setDetailedModels(models);
+                enemies.visuals.setDetailedModels(models);
+                boss.setDetailedModels(models);
+                skills.setDetailedModels(models);
+                resetFrameClock();
+              }
+              syncQualityControls(quality);
+              try { localStorage.setItem(graphicsStorageKey, quality); } catch {}
+              const url = new URL(location.href);
+              if (url.searchParams.has('graphics')) {
+                url.searchParams.delete('graphics');
+                try { history.replaceState(history.state, '', url); } catch {}
+              }
+            });
+          });
+        }
         const muteButton = document.getElementById('btn-mute');
         const muteCheckbox = document.getElementById('home-mute');
         const bgmSliders = ['vol-bgm', 'home-vol-bgm'].map(id => document.getElementById(id));
@@ -4069,8 +4243,8 @@
             advanceGame(presentationStep);
           }
           if (!isGameClockRunning()) pendingGameSeconds = 0;
-          enemies.details?.sync(enemies.enemies);
-          souls.details?.sync(souls.souls);
+          enemies.visuals.sync();
+          souls.visuals.sync();
           sceneManager.render();
 
           hudHp.textContent = String(Math.ceil(player.hp));

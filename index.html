@@ -124,7 +124,7 @@
       display: none; align-items: center; justify-content: center; z-index: 55; padding: 16px;
     }
     #howto-modal.visible { display: flex; }
-    #home-settings { position: fixed; margin: auto; width: min(360px, calc(100% - 28px)); }
+    #home-settings { position: fixed; margin: auto; width: min(360px, calc(100% - 28px)); max-height: calc(100% - 28px); overflow-y: auto; }
     #home-settings::backdrop { background: rgba(6, 9, 20, 0.84); backdrop-filter: blur(5px); }
     .howto-list {
       text-align: left; font-size: 12.5px; color: #e2dac9; line-height: 1.65;
@@ -351,6 +351,13 @@
     .modal-body { font-size: 13px; color: #d8d3c8; line-height: 1.6; margin-bottom: 14px; }
     .vol-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; margin: 8px 0; }
     .vol-row input { flex: 1; accent-color: #ffd700; }
+    #pause-modal .modal-card { max-height: 100%; overflow-y: auto; }
+    .speed-row { font-size: 14px; font-weight: 700; }
+    .speed-row select {
+      min-height: 44px; min-width: 126px; padding: 6px 10px;
+      background: #141a32; color: #fff; border: 1px solid #d4af37; border-radius: 8px;
+      font: inherit; font-size: 16px;
+    }
     .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
     .modal-primary-btn {
       background: linear-gradient(135deg, #ffd700, #c8961e); color: #141210; border: none;
@@ -441,7 +448,7 @@
         <div class="modal-title">メジェド神は守ってる — 遊び方</div>
         <div class="howto-list">
           <div><strong>■ 基本ルール</strong><br>画面下部の石畳を左から右へ行進する「死者たち」を、迫り来る魔物や神々から守り抜きます。Wave 40の最終ボス「大蛇アペプ」撃破でクリア！死者被害が30体、またはメジェドHPが0になると敗北です。</div>
-          <div><strong>■ 操作方法</strong><br>パソコンでは、マウスを動かした方向へメジェドが移動します。Sキーか画面の「停止」で一時停止メニューを開けます。スマホでは、戦場に触れて指を動かすと移動できます。攻撃は自動で発動します。</div>
+          <div><strong>■ 操作方法</strong><br>パソコンでは、マウスを動かした方向へメジェドが移動します。Sキーか画面の「停止」で一時停止メニューを開けます。スマホでは、戦場に触れて指を動かすと移動できます。攻撃は自動で発動します。ホームの設定や一時停止メニューで、ゲーム速度を1倍・1.5倍・2倍から選べます。</div>
           <div><strong>■ 布の弾き返し（盾アクション）</strong><br>毒サソリの毒弾やアヌビス弓兵の矢に向かって移動入力で体当たりすると、被ダメージ無効で<strong>3倍威力の反射弾</strong>を撃ち返します！</div>
           <div><strong>■ スキル育成＆神格覚醒（全8種×Lv10）</strong><br>敵撃破で落ちる経験値ジェムを集めてレベルアップ。Lv3までは自由に強化でき、Lv4は全8スキル平均Lv2.3以上（以降+1.0ごと）で段階解放されます。Lv10到達で強力な<strong>神格覚醒</strong>が発動します。</div>
           <div><strong>■ 黄金宝箱とボス撃破報酬</strong><br>ファラオの棺を<strong>無傷で護衛</strong>すると黄金宝箱を獲得します。スロットの出目に応じて、最もレベルの低いスキルが1〜3レベル上がります。ボスが大技をためている間に一定のダメージを与えると、発動を止められます。第10・20・30ウェーブのボスを倒すと、レベル上限を1段階上げるか、上限内で好きなスキルを1レベル強化できます。全スキルが最大レベルなら、強化報酬は5秒間の攻撃力+20%になります。</div>
@@ -452,6 +459,9 @@
 
     <dialog id="home-settings" class="modal-card" aria-labelledby="home-settings-title">
       <h2 class="modal-title" id="home-settings-title">設定</h2>
+      <label class="vol-row speed-row">ゲーム速度
+        <select data-game-speed><option value="1">1倍（通常）</option><option value="1.5">1.5倍</option><option value="2">2倍</option></select>
+      </label>
       <div class="vol-row"><label for="home-vol-bgm">音楽の音量</label><input type="range" id="home-vol-bgm" min="0" max="1" step="0.05" /></div>
       <div class="vol-row"><label for="home-vol-se">効果音の音量</label><input type="range" id="home-vol-se" min="0" max="1" step="0.05" /></div>
       <label class="settings-toggle"><input type="checkbox" id="home-mute" /> 音を消す</label>
@@ -547,6 +557,9 @@
       <div class="modal-card">
         <div class="modal-title">一時停止・設定</div>
         <div class="modal-body" id="pause-body"></div>
+        <label class="vol-row speed-row">ゲーム速度
+          <select data-game-speed><option value="1">1倍（通常）</option><option value="1.5">1.5倍</option><option value="2">2倍</option></select>
+        </label>
         <div class="vol-row"><label for="vol-bgm">音楽の音量</label><input type="range" id="vol-bgm" min="0" max="1" step="0.05" /></div>
         <div class="vol-row"><label for="vol-se">効果音の音量</label><input type="range" id="vol-se" min="0" max="1" step="0.05" /></div>
         <div class="modal-actions" style="margin-top:14px;">
@@ -3158,6 +3171,14 @@
         const projectiles = new ProjectileManager(sceneManager.scene, audio, dmgText, sceneManager, recordDmg);
         const skills = new SkillSystem(sceneManager.scene, audio, sceneManager, recordDmg);
 
+        const gameSpeeds = [1, 1.5, 2];
+        const gameSpeedKey = 'medjed_game_speed_v1';
+        let gameSpeed = 1;
+        try {
+          const savedSpeed = Number(localStorage.getItem(gameSpeedKey));
+          if (gameSpeeds.includes(savedSpeed)) gameSpeed = savedSpeed;
+        } catch {}
+
         let gameState = 'TITLE';
         let bossIntroTimer = 0, slowMoTimer = 0, hitStopTimer = 0, casualtyFlashTimer = 0, toastTimer = 0;
         let bossRewardTimer = 0, victoryTimer = 0, pendingChests = 0;
@@ -3308,7 +3329,7 @@
               audio.playAwaken();
               renderSkillStrip(); updateExpHud();
             }
-          }, 70);
+          }, 70 / gameSpeed);
         };
 
         // ボス撃破報酬モーダル（次のレベル制限解除 or 全8スキルから任意+1／上限適用）
@@ -3673,6 +3694,17 @@
         });
         const settingsButton = document.getElementById('btn-settings');
         const settingsModal = document.getElementById('home-settings');
+        const speedControls = document.querySelectorAll('select[data-game-speed]');
+        for (const control of speedControls) {
+          control.value = String(gameSpeed);
+          control.addEventListener('change', () => {
+            const selected = Number(control.value);
+            if (!gameSpeeds.includes(selected)) return;
+            gameSpeed = selected;
+            speedControls.forEach(select => { select.value = String(gameSpeed); });
+            try { localStorage.setItem(gameSpeedKey, String(gameSpeed)); } catch {}
+          });
+        }
         const muteButton = document.getElementById('btn-mute');
         const muteCheckbox = document.getElementById('home-mute');
         const bgmSliders = ['vol-bgm', 'home-vol-bgm'].map(id => document.getElementById(id));
@@ -3756,15 +3788,8 @@
           return mix[0][0];
         };
 
-        let lastTime = performance.now();
-
-        const tick = (now) => {
-          requestAnimationFrame(tick);
-          const rawDt = (now - lastTime) / 1000; lastTime = now;
-          let dt = Math.min(Math.max(rawDt, 0.0001), 0.05);
-
-          audio.updateBgm(dt);
-
+        const advanceGame = (elapsed) => {
+          let dt = elapsed;
           if (gameState === 'TITLE' || gameState === 'RESULT' || gameState === 'VICTORY') {
             player.update(dt, 0, 0, 0);
             sceneManager.update(dt, player.position, true);
@@ -3825,8 +3850,8 @@
             }
 
             if (gameState === 'PLAYING') {
-              const bossRewardReady = bossRewardTimer > 0 && rawDt >= bossRewardTimer;
-              bossRewardTimer = Math.max(0, bossRewardTimer - rawDt);
+              const bossRewardReady = bossRewardTimer > 0 && elapsed >= bossRewardTimer;
+              bossRewardTimer = Math.max(0, bossRewardTimer - elapsed);
               if (bossRewardReady) {
                 startWave(currentWave + 1);
                 openBossRewardModal();
@@ -3850,7 +3875,20 @@
             if (casualtyFlashTimer > 0) { casualtyFlashTimer -= dt; if (casualtyFlashTimer <= 0) rightPanel.classList.remove('casualty-flash'); }
             if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) bannerToast.classList.remove('show'); }
           }
+        };
 
+        let lastTime = performance.now();
+        const tick = (now) => {
+          requestAnimationFrame(tick);
+          const frameDt = Math.min(Math.max((now - lastTime) / 1000, 0.0001), 0.05);
+          lastTime = now;
+          audio.updateBgm(frameDt);
+
+          const speed = ['PLAYING', 'BOSS_INTRO', 'VICTORY'].includes(gameState) ? gameSpeed : 1;
+          // Split faster frames so projectile and collision updates keep their original maximum step.
+          const steps = Math.ceil(speed);
+          const stepDt = frameDt * speed / steps;
+          for (let step = 0; step < steps; step++) advanceGame(stepDt);
           sceneManager.render();
 
           hudHp.textContent = String(Math.ceil(player.hp));

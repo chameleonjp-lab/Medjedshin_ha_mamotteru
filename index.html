@@ -48,7 +48,7 @@
     #title-screen {
       position: fixed; inset: 0; z-index: 50;
       display: flex; flex-direction: column; justify-content: space-between; align-items: center;
-      padding: max(22px, env(safe-area-inset-top)) 16px max(26px, env(safe-area-inset-bottom));
+      padding: max(20px, env(safe-area-inset-top)) 16px max(40px, calc(env(safe-area-inset-bottom) + 28px));
       background: radial-gradient(circle at 50% 45%, rgba(14, 18, 34, 0.15), rgba(8, 10, 20, 0.72));
     }
     #title-screen.hidden { display: none; }
@@ -204,11 +204,43 @@
     .boss-intro-sub { font-size: 13px; color: #e2dac9; margin-top: 4px; }
 
     /* レベルアップ3択モーダル */
-    #levelup-modal, #chest-modal, #result-modal, #pause-modal {
-      position: fixed; inset: 0; background: rgba(6, 9, 20, 0.8); backdrop-filter: blur(5px);
+    #levelup-modal, #chest-modal, #boss-reward-modal, #result-modal, #pause-modal {
+      position: fixed; inset: 0; background: rgba(6, 9, 20, 0.82); backdrop-filter: blur(5px);
       display: none; align-items: center; justify-content: center; z-index: 45; padding: 14px;
     }
-    #levelup-modal.visible, #chest-modal.visible, #result-modal.visible, #pause-modal.visible { display: flex; }
+    #levelup-modal.visible, #chest-modal.visible, #boss-reward-modal.visible, #result-modal.visible, #pause-modal.visible { display: flex; }
+
+    .br-card {
+      background: rgba(14, 18, 34, 0.97); border: 2px solid #ffd700; border-radius: 16px;
+      padding: 18px 18px; color: #f4f1ea; max-width: 660px; width: 100%; max-height: 88vh; overflow-y: auto;
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.35);
+    }
+    .br-unlock-btn {
+      width: 100%; padding: 13px 16px; border-radius: 12px; border: 2px solid #ffd700;
+      background: linear-gradient(135deg, rgba(255,215,0,0.22), rgba(200,145,22,0.38));
+      color: #fff6c2; font-size: 14px; font-weight: 900; cursor: pointer;
+      margin: 10px 0 14px; text-align: center; transition: transform 0.12s, filter 0.15s;
+    }
+    .br-unlock-btn:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-2px); }
+    .br-unlock-btn:disabled { opacity: 0.45; cursor: not-allowed; border-color: #6c665a; }
+    .br-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    }
+    .br-skill-btn {
+      background: rgba(20, 26, 50, 0.92); border: 1.5px solid #d4af37; border-radius: 10px;
+      padding: 9px 7px; color: #f4f1ea; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+      transition: transform 0.12s, border-color 0.12s;
+    }
+    .br-skill-btn:hover:not(:disabled) { transform: translateY(-2px); border-color: #ffd700; background: rgba(34, 44, 78, 0.96); }
+    .br-skill-btn:disabled { opacity: 0.5; cursor: not-allowed; border-color: #5a554c; background: rgba(16, 18, 28, 0.85); }
+    .br-skill-icon { font-size: 22px; }
+    .br-skill-name { font-size: 11px; font-weight: 800; line-height: 1.2; }
+    .br-skill-meta { font-size: 10px; font-weight: 700; color: #00e5ff; }
+    .br-skill-btn:disabled .br-skill-meta { color: #ff8c7a; }
+    @media (max-width: 640px) {
+      .br-grid { grid-template-columns: repeat(2, 1fr); }
+    }
 
     .lu-container { width: 100%; max-width: 740px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
     .lu-title { font-size: 22px; font-weight: 900; color: #ffd700; text-align: center; }
@@ -309,6 +341,10 @@
     @media (max-width: 680px) {
       .lu-cards { grid-template-columns: 1fr; max-height: 76vh; overflow-y: auto; }
       .skill-slot { width: 34px; height: 34px; font-size: 15px; }
+      .hud-left { min-width: 140px; padding: 5px 8px; }
+      .hud-right { gap: 7px; padding: 5px 8px; }
+      .hud-stat { min-width: 36px; }
+      .hud-stat-value { font-size: 13px; }
     }
   </style>
 </head>
@@ -351,7 +387,7 @@
           <div><strong>■ 操作方法</strong><br>PCは <strong>WASD / 矢印キー</strong>、スマホは <strong>画面の任意位置をドラッグ（バーチャルジョイスティック）</strong>で移動します。攻撃スキルはすべて自動発動します。</div>
           <div><strong>■ 布の弾き返し（盾アクション）</strong><br>毒サソリの毒弾やアヌビス弓兵の矢に向かって移動入力で体当たりすると、被ダメージ無効で<strong>3倍威力の反射弾</strong>を撃ち返します！</div>
           <div><strong>■ スキル育成＆神格覚醒（全8種×Lv10）</strong><br>敵撃破で落ちる経験値ジェムを集めてレベルアップ。Lv3までは自由に強化でき、Lv4は全8スキル平均Lv2.3以上（以降+1.0ごと）で段階解放されます。Lv10到達で強力な<strong>神格覚醒</strong>が発動します。</div>
-          <div><strong>■ 特殊な死者＆宝箱</strong><br>「神官の死者」は周囲の死者を強化し、「ファラオの棺」を護衛しきると最大2スキルが即時レベルアップする黄金宝箱を獲得できます。</div>
+          <div><strong>■ 黄金宝箱とボス撃破報酬</strong><br>ファラオの棺を<strong>無傷で護衛</strong>すると黄金宝箱を獲得します。スロットの出目に応じて、最もレベルの低いスキルが1〜3レベル上がります。ボスが大技をためている間に一定のダメージを与えると、発動を止められます。第10・20・30ウェーブのボスを倒すと、レベル上限を1段階上げるか、上限内で好きなスキルを1レベル強化できます。全スキルが最大レベルなら、強化報酬は5秒間の攻撃力+20%になります。</div>
         </div>
         <button type="button" class="modal-primary-btn" id="howto-close-btn">閉じる</button>
       </div>
@@ -417,6 +453,17 @@
         <div class="lu-title" id="lu-title">LEVEL UP!</div>
         <div class="lu-sub" id="lu-sub"></div>
         <div class="lu-cards" id="lu-cards"></div>
+      </div>
+    </div>
+
+    <!-- ボス撃破報酬モーダル（上限解除 or 全8スキルから任意+1） -->
+    <div id="boss-reward-modal">
+      <div class="br-card">
+        <div class="modal-title" style="margin-bottom:4px;">🏆 ボス撃破報酬</div>
+        <div style="font-size:12px;color:#d8d3c8;text-align:center;" id="br-sub"></div>
+        <button type="button" class="br-unlock-btn" id="br-unlock-btn"></button>
+        <div style="font-size:11px;color:#ffd700;font-weight:800;margin-bottom:6px;">または、任意のスキルを1つ選んで Lv+1（現在のレベル上限が適用されます）</div>
+        <div class="br-grid" id="br-grid"></div>
       </div>
     </div>
 
@@ -558,7 +605,7 @@
         { dur: 35, total: 330, mix: [['ushabti',35],['mummy',25],['archer',20],['scorpion',20]], elites: 3, flank: true },
         { dur: 35, total: 350, mix: [['scarab',40],['wisp',35],['archer',25]], elites: 3, flank: true },
         { dur: 35, total: 370, mix: [['archer',35],['scorpion',35],['ushabti',30]], elites: 4, flank: true },
-        { dur: 35, total: 390, mix: [['jackal',14],['mummy',14],['scarab',15],['scorpion',14],['archer',14],['ushabti',14],['wisp',15]], elites: 5, coffin: 2, flank: true },
+        { dur: 35, total: 390, mix: [['jackal',14],['mummy',14],['scarab',15],['scorpion',14],['archer',14],['ushabti',14],['wisp',15]], elites: 5, coffin: 1, flank: true },
         { dur: 35, total: 410, mix: [['jackal',25],['scarab',25],['wisp',25],['ushabti',25]], elites: 4, flank: true },
         { dur: 35, total: 430, mix: [['ushabti',30],['wisp',30],['archer',20],['scorpion',20]], elites: 5, flank: true },
         { dur: 35, total: 460, mix: [['jackal',14],['mummy',14],['scarab',15],['scorpion',14],['archer',14],['ushabti',14],['wisp',15]], elites: 6, flank: true },
@@ -752,6 +799,12 @@
             comp.connect(this.ctx.destination);
           }
           if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+          // iOS Safari 確実アンロック用の1サンプル無音バッファ再生（設計書06準拠）
+          try {
+            const buf = this.ctx.createBuffer(1, 1, 22050);
+            const src = this.ctx.createBufferSource();
+            src.buffer = buf; src.connect(this.ctx.destination); src.start(0);
+          } catch {}
         }
 
         setVolumes(bgm, se) {
@@ -1209,6 +1262,7 @@
         }
         reset() {
           this.hp = PLAYER_CFG.maxHp; this.position.set(0, 0, 8.0); this.root.rotation.y = Math.PI;
+          this.bodyPivot.position.set(0, 0, 0); this.bodyPivot.rotation.set(0, 0, 0);
           this.currentSpeedRatio = 0; this.recoilTimer = 0; this.eyeWidenAmount = 0;
           this.flashTimer = 0; this.invulnTimer = 0; this.guardFlashTimer = 0; this.celebrate = false;
           this.timeSinceHit = PLAYER_CFG.regenDelaySec; this.setInvisible(false, 1.0);
@@ -1306,7 +1360,7 @@
               .replace('#include <common>', '#include <common>\nuniform float uFlash;')
               .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0) * uFlash * 2.2;');
           };
-          const mesh = new THREE.Mesh(lathe, mat); mesh.castShadow = true; mesh.receiveShadow = true;
+          const mesh = new THREE.Mesh(lathe, mat); mesh.castShadow = true; mesh.receiveShadow = false;
           return { mesh, mat };
         }
         buildEyes(eyeGroup) {
@@ -1380,6 +1434,18 @@
             return { mesh: m, active: false, x: 0, y: 12, z: 13.5, hp: 180 };
           });
 
+          // ボス共通：攻撃チャージ警告リング（セト落雷・アメミット咆哮・アペプブレス）
+          this.warnCircleMat = new THREE.MeshBasicMaterial({ color: 0xff2244, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false });
+          this.warnCircle = new THREE.Mesh(new THREE.RingGeometry(0.4, 2.4, 24), this.warnCircleMat);
+          this.warnCircle.rotation.x = -Math.PI / 2;
+          this.warnCircle.position.y = 0.09;
+          this.warnCircle.visible = false;
+          scene.add(this.warnCircle);
+          this.attackPattern = 0;
+          this.warnTargetX = 0; this.warnTargetZ = 8;
+          this.cancelThreshold = 600;
+          this.isChargingCancelable = false;
+
           // アペプ12節＋3破壊可能コア
           this.apepSegments = [];
           this.apepCores = [];
@@ -1390,7 +1456,8 @@
 
         clear() {
           this.active = false; this.type = null;
-          this.telegraphMesh.visible = false; this.sphinxLaser.visible = false;
+          this.telegraphMesh.visible = false; this.sphinxLaser.visible = false; this.warnCircle.visible = false;
+          this.isChargingCancelable = false;
           for (const b of this.boulders) { b.active = false; b.mesh.visible = false; }
           this.sceneManager.setSandstorm(false);
           while (this.group.children.length > 0) this.group.remove(this.group.children[0]);
@@ -1546,13 +1613,19 @@
             this.dmgText.spawn(this.x, this.z, '砂嵐解除!', 'reflect');
           }
 
-          // アメミット：突進準備中に600ダメ以上でキャンセル＆2秒怯み
-          if (this.type === 'ammit' && this.state === 'telegraph') {
+          // 全4柱ボス共通：大技チャージ中に一定ダメージを与えると怯みで阻止！
+          if (this.isChargingCancelable) {
             this.chargeDmgAccum += dmg;
-            if (this.chargeDmgAccum >= 600) {
-              this.state = 'stunned'; this.timer = 2.0; this.telegraphMesh.visible = false;
-              this.dmgText.spawn(this.x, this.z, '突進キャンセル!', 'reflect');
-              this.sceneManager.addShake(0.35);
+            if (this.chargeDmgAccum >= this.cancelThreshold) {
+              this.isChargingCancelable = false;
+              this.state = 'stunned'; this.timer = 2.1;
+              this.telegraphMesh.visible = false;
+              this.warnCircle.visible = false;
+              this.sphinxLaser.visible = false;
+              this.sceneManager.setSandstorm(false);
+              this.dmgText.spawn(this.x, this.z, '⚡ 怯み阻止!!', 'reflect');
+              this.audio.playReflect();
+              this.sceneManager.addShake(0.4);
             }
           }
 
@@ -1599,88 +1672,210 @@
 
           if (this.type === 'ammit') {
             if (this.state === 'idle') {
-              this.x = Math.sin(this.elapsed * 0.9) * 7.5;
+              this.x = Math.sin(this.elapsed * 1.0) * 7.5;
               this.z += (-10 - this.z) * Math.min(1, dt * 3);
+              this.group.scale.set(1, 1, 1);
               this.timer -= dt;
               if (this.timer <= 0) {
-                this.state = 'telegraph'; this.timer = 2.5; this.chargeDmgAccum = 0; this.chargeX = this.x;
-                this.telegraphMesh.position.set(this.chargeX, 0.08, 2); this.telegraphMesh.visible = true;
+                this.attackPattern = (this.attackPattern + 1) % 2;
+                this.chargeDmgAccum = 0; this.isChargingCancelable = true;
+                if (this.attackPattern === 0) {
+                  this.state = 'telegraph'; this.timer = 2.4; this.cancelThreshold = 600; this.chargeX = this.x;
+                  this.telegraphMesh.position.set(this.chargeX, 0.08, 2); this.telegraphMesh.visible = true;
+                } else {
+                  this.state = 'roar_charge'; this.timer = 1.6; this.cancelThreshold = 450;
+                  this.warnCircle.position.set(this.x, 0.09, this.z); this.warnCircle.scale.setScalar(1.4); this.warnCircle.visible = true;
+                }
               }
             } else if (this.state === 'telegraph') {
               this.timer -= dt;
-              this.telegraphMesh.material.opacity = 0.25 + Math.abs(Math.sin(this.elapsed * 12)) * 0.35;
-              if (this.timer <= 0) { this.state = 'charge'; this.telegraphMesh.visible = false; }
+              this.group.scale.set(1.08, 0.88 + Math.abs(Math.sin(this.elapsed * 14)) * 0.14, 1.08);
+              this.telegraphMesh.material.opacity = 0.25 + Math.abs(Math.sin(this.elapsed * 14)) * 0.4;
+              if (this.timer <= 0) { this.isChargingCancelable = false; this.state = 'charge'; this.telegraphMesh.visible = false; this.group.scale.set(1, 1, 1); }
             } else if (this.state === 'charge') {
-              this.z += 22 * dt;
-              if (Math.hypot(this.x - player.position.x, this.z - player.position.z) < 2.2) {
-                if (player.takeDamage(28) && player.hp <= 0) onPlayerDead();
+              this.z += 23 * dt;
+              if (Math.hypot(this.x - player.position.x, this.z - player.position.z) < 2.3) {
+                if (player.takeDamage(35) && player.hp <= 0) onPlayerDead();
               }
               if (this.z >= 13.5) {
                 const s = souls.findNearestSoul(this.x, 13.5);
-                if (s && Math.abs(s.x - this.x) < 2.8) souls.damageSoul(s, 35, barrier);
-                this.sceneManager.addShake(0.4);
-                this.state = 'idle'; this.timer = 3.2; this.z = -12;
+                if (s && Math.abs(s.x - this.x) < 3.0) souls.damageSoul(s, 40, barrier);
+                this.sceneManager.addShake(0.45);
+                this.state = 'idle'; this.timer = 2.6; this.z = -12;
+              }
+            } else if (this.state === 'roar_charge') {
+              this.timer -= dt;
+              this.group.scale.set(1.15, 0.82, 1.15);
+              this.warnCircle.scale.setScalar(1.0 + (1 - Math.max(0, this.timer) / 1.6) * 1.2);
+              if (this.timer <= 0) {
+                this.isChargingCancelable = false; this.warnCircle.visible = false; this.group.scale.set(1, 1, 1);
+                this.audio.playBoom(); this.sceneManager.addShake(0.32);
+                // 5方向へ牙衝撃弾を放射
+                for (const ang of [-0.55, -0.27, 0, 0.27, 0.55]) {
+                  projectiles.spawn('arrow', this.x, this.z + 1.2, Math.sin(ang), Math.cos(ang), 12.5, 18);
+                }
+                this.state = 'idle'; this.timer = 2.4;
               }
             }
             this.group.position.set(this.x, 0, this.z);
           } else if (this.type === 'set') {
-            this.timer -= dt;
-            if (this.timer <= 0) {
-              this.timer = 6.5;
-              this.sceneManager.setSandstorm(true);
-              const slots = [-7.5, 0, 7.5].sort(() => Math.random() - 0.5);
-              this.x = slots[0]; this.z = -8.5;
-              this.setClones[0].position.set(slots[1], 0, -8.5); this.setClones[0].visible = true;
-              this.setClones[1].position.set(slots[2], 0, -8.5); this.setClones[1].visible = true;
-              // 3方向へ混沌弾を射出
-              for (const ox of [-0.35, 0, 0.35]) projectiles.spawn('arrow', this.x, this.z, ox, 1, 12, 18);
+            if (this.state === 'idle') {
+              this.timer -= dt;
+              this.group.rotation.y = Math.sin(this.elapsed * 2) * 0.25;
+              if (this.timer <= 0) {
+                this.attackPattern = (this.attackPattern + 1) % 2;
+                this.chargeDmgAccum = 0; this.isChargingCancelable = true;
+                if (this.attackPattern === 0) {
+                  this.state = 'storm_charge'; this.timer = 2.0; this.cancelThreshold = 1400;
+                  this.sceneManager.setSandstorm(true);
+                  const slots = [-7.5, 0, 7.5].sort(() => Math.random() - 0.5);
+                  this.x = slots[0]; this.z = -8.5;
+                  this.setClones[0].position.set(slots[1], 0, -8.5); this.setClones[0].visible = true;
+                  this.setClones[1].position.set(slots[2], 0, -8.5); this.setClones[1].visible = true;
+                } else {
+                  this.state = 'lightning_charge'; this.timer = 1.4; this.cancelThreshold = 1000;
+                  this.warnTargetX = player.position.x; this.warnTargetZ = player.position.z;
+                  this.warnCircle.position.set(this.warnTargetX, 0.09, this.warnTargetZ);
+                  this.warnCircle.scale.setScalar(1.25); this.warnCircle.visible = true;
+                }
+              }
+            } else if (this.state === 'storm_charge') {
+              this.timer -= dt;
+              this.group.rotation.y += dt * 10;
+              if (this.timer <= 0) {
+                this.isChargingCancelable = false; this.group.rotation.y = 0;
+                const dx = player.position.x - this.x, dz = player.position.z - this.z;
+                const baseAng = Math.atan2(dx, dz);
+                for (const off of [-0.45, -0.22, 0, 0.22, 0.45]) {
+                  projectiles.spawn('arrow', this.x, this.z, Math.sin(baseAng + off), Math.cos(baseAng + off), 13.5, 24);
+                }
+                this.audio.playBoom(); this.state = 'idle'; this.timer = 3.2;
+              }
+            } else if (this.state === 'lightning_charge') {
+              this.timer -= dt;
+              this.warnCircleMat.opacity = 0.3 + Math.abs(Math.sin(this.elapsed * 18)) * 0.45;
+              if (this.timer <= 0) {
+                this.isChargingCancelable = false; this.warnCircle.visible = false;
+                this.audio.playBoom(); this.sceneManager.addShake(0.35);
+                if (Math.hypot(player.position.x - this.warnTargetX, player.position.z - this.warnTargetZ) <= 2.7) {
+                  if (player.takeDamage(32) && player.hp <= 0) onPlayerDead();
+                }
+                this.state = 'idle'; this.timer = 2.6;
+              }
             }
             this.group.position.set(this.x, 0.4 + Math.sin(this.elapsed * 3) * 0.25, this.z);
           } else if (this.type === 'sphinx') {
-            this.timer -= dt;
-            if (this.state === 'idle' && this.timer <= 0) {
-              this.state = 'laser'; this.timer = 4.0; this.sphinxLaser.visible = true;
-              // 落石2個を死者レーン上空へ生成
-              for (let i = 0; i < 2; i++) {
-                const b = this.boulders[i];
-                b.active = true; b.x = -7 + Math.random() * 14; b.y = 14; b.z = 13.5; b.hp = 180;
-                b.mesh.position.set(b.x, b.y, b.z); b.mesh.visible = true;
+            if (this.state === 'idle') {
+              this.timer -= dt;
+              if (this.timer <= 0) {
+                this.attackPattern = (this.attackPattern + 1) % 2;
+                this.chargeDmgAccum = 0; this.isChargingCancelable = true;
+                if (this.attackPattern === 0) {
+                  this.state = 'laser_charge'; this.timer = 1.8; this.cancelThreshold = 2800;
+                  this.warnCircle.position.set(0, 0.09, -8.5); this.warnCircle.scale.setScalar(1.6); this.warnCircle.visible = true;
+                } else {
+                  this.state = 'slam_charge'; this.timer = 1.5; this.cancelThreshold = 2200;
+                }
+              }
+            } else if (this.state === 'laser_charge') {
+              this.timer -= dt;
+              if (this.sphinxHead) this.sphinxHead.position.y = 3.7 + Math.sin(this.elapsed * 20) * 0.12;
+              if (this.timer <= 0) {
+                this.isChargingCancelable = false; this.warnCircle.visible = false;
+                if (this.sphinxHead) this.sphinxHead.position.y = 3.7;
+                this.state = 'laser'; this.timer = 3.8; this.sphinxLaser.visible = true;
+              }
+            } else if (this.state === 'slam_charge') {
+              this.timer -= dt;
+              this.group.position.y = Math.sin((1 - Math.max(0, this.timer) / 1.5) * Math.PI) * 0.85;
+              if (this.timer <= 0) {
+                this.isChargingCancelable = false; this.group.position.y = 0;
+                this.sceneManager.addShake(0.45); this.audio.playBoom();
+                // 落石3個（メジェド頭上1＋死者レーン2）
+                for (let i = 0; i < 3; i++) {
+                  const b = this.boulders[i];
+                  b.active = true;
+                  b.x = i === 0 ? player.position.x : -7.5 + Math.random() * 15;
+                  b.z = i === 0 ? player.position.z : 13.5;
+                  b.y = 14; b.hp = 180;
+                  b.mesh.position.set(b.x, b.y, b.z); b.mesh.visible = true;
+                }
+                this.state = 'idle'; this.timer = 2.8;
               }
             } else if (this.state === 'laser') {
               this.timer -= dt;
-              const t = 1 - Math.max(0, this.timer) / 4.0;
-              const ang = THREE.MathUtils.lerp(-0.8, 0.8, t);
+              const t = 1 - Math.max(0, this.timer) / 3.8;
+              const ang = THREE.MathUtils.lerp(-0.85, 0.85, t);
               if (this.sphinxHead) this.sphinxHead.rotation.y = ang;
-              this.sphinxLaser.position.set(Math.sin(ang) * 14, 1.8, -10 + Math.cos(ang) * 14);
+              const lxDir = Math.sin(ang), lzDir = Math.cos(ang);
+              this.sphinxLaser.position.set(lxDir * 14, 1.8, -10 + lzDir * 14);
               this.sphinxLaser.rotation.set(Math.PI / 2, 0, -ang);
-              if (this.timer <= 0) { this.state = 'idle'; this.timer = 3.5; this.sphinxLaser.visible = false; }
+              const px = player.position.x, pz = player.position.z + 10;
+              const pProj = px * lxDir + pz * lzDir;
+              if (pProj >= 0 && pProj <= 28 && (px - lxDir * pProj) ** 2 + (pz - lzDir * pProj) ** 2 <= 1.05 ** 2) {
+                if (player.takeDamage(28) && player.hp <= 0) onPlayerDead();
+              }
+              const sHit = souls.findNearestSoul(lxDir * 23.5, 13.5);
+              if (sHit && Math.abs(sHit.x - lxDir * 23.5) <= 1.1 && Math.random() < dt * 3.5) {
+                souls.damageSoul(sHit, 18, barrier);
+              }
+              if (this.timer <= 0) { this.state = 'idle'; this.timer = 2.8; this.sphinxLaser.visible = false; }
             }
             for (const b of this.boulders) {
               if (!b.active) continue;
-              b.y -= 3.2 * dt;
+              b.y -= 3.5 * dt;
               b.mesh.position.set(b.x, b.y, b.z); b.mesh.rotation.x += dt * 3;
               if (b.y <= 0.8) {
                 b.active = false; b.mesh.visible = false;
+                if (Math.hypot(player.position.x - b.x, player.position.z - b.z) < 2.1) {
+                  if (player.takeDamage(30) && player.hp <= 0) onPlayerDead();
+                }
                 const s = souls.findNearestSoul(b.x, b.z);
-                if (s && Math.abs(s.x - b.x) < 2.4) souls.damageSoul(s, 30, barrier);
+                if (s && Math.abs(s.x - b.x) < 2.4 && Math.abs(s.z - b.z) < 2.2) souls.damageSoul(s, 30, barrier);
                 this.sceneManager.addShake(0.28);
               }
             }
           } else if (this.type === 'apep') {
-            // 12節が巨大なサインカーブを描きながら画面奥〜中段をうねる
-            this.x = Math.sin(this.elapsed * 0.75) * 8.5;
-            this.z = -7.5 + Math.cos(this.elapsed * 0.5) * 3.5;
+            const sweepZ = this.state === 'lunge' ? 7.5 : -7.5;
+            this.x = Math.sin(this.elapsed * 0.85) * 8.5;
+            this.z += (sweepZ + Math.cos(this.elapsed * 0.6) * 2.8 - this.z) * Math.min(1, dt * 3.2);
             this.group.position.set(0, 0, 0);
             for (let i = 0; i < this.apepSegments.length; i++) {
-              const t = this.elapsed - i * 0.22;
-              const sx = Math.sin(t * 0.75) * 8.5;
-              const sz = -7.5 + Math.cos(t * 0.5) * 3.5;
+              const t = this.elapsed - i * 0.2;
+              const sx = Math.sin(t * 0.85) * 8.5;
+              const sz = this.z - i * 0.65;
               this.apepSegments[i].position.set(sx, 1.5 + Math.sin(t * 2.5) * 0.35, sz);
+              // 大うねり体当たり：メジェドへの直接接触ダメージ（38）
+              if (i <= 4 && Math.hypot(sx - player.position.x, sz - player.position.z) < 1.9) {
+                if (player.takeDamage(38) && player.hp <= 0) onPlayerDead();
+              }
             }
-            this.timer -= dt;
-            if (this.timer <= 0) {
-              this.timer = 2.6;
-              projectiles.spawn('poison', this.x, this.z, (Math.random() - 0.5) * 0.5, 1, 11, 22);
+            if (this.state === 'idle') {
+              this.timer -= dt;
+              if (this.timer <= 0) {
+                this.attackPattern = (this.attackPattern + 1) % 2;
+                this.chargeDmgAccum = 0; this.isChargingCancelable = true;
+                if (this.attackPattern === 0) {
+                  this.state = 'breath_charge'; this.timer = 2.0; this.cancelThreshold = 5000;
+                  this.warnCircle.position.set(this.x, 0.09, this.z); this.warnCircle.scale.setScalar(1.8); this.warnCircle.visible = true;
+                } else {
+                  this.state = 'lunge'; this.timer = 3.2; this.cancelThreshold = 4500;
+                }
+              }
+            } else if (this.state === 'breath_charge') {
+              this.timer -= dt;
+              this.warnCircle.position.set(this.x, 0.09, this.z);
+              if (this.timer <= 0) {
+                this.isChargingCancelable = false; this.warnCircle.visible = false;
+                const baseAng = Math.atan2(player.position.x - this.x, player.position.z - this.z);
+                for (let k = -3; k <= 3; k++) {
+                  projectiles.spawn('poison', this.x, this.z, Math.sin(baseAng + k * 0.16), Math.cos(baseAng + k * 0.16), 12.5, 26);
+                }
+                this.audio.playBoom(); this.state = 'idle'; this.timer = 2.5;
+              }
+            } else if (this.state === 'lunge') {
+              this.timer -= dt;
+              if (this.timer <= 0) { this.isChargingCancelable = false; this.state = 'idle'; this.timer = 2.4; }
             }
           }
         }
@@ -1692,7 +1887,7 @@
       class SoulMarchManager {
         constructor(scene, cb) {
           this.cb = cb; this.capacity = 60;
-          this.souls = Array.from({ length: 60 }, () => ({ active: false, type: 'general', x: 0, z: 0, hp: 30, maxHp: 30, speed: 1.8, animPhase: 0, flashTimer: 0 }));
+          this.souls = Array.from({ length: 60 }, () => ({ active: false, type: 'general', x: 0, z: 0, hp: 30, maxHp: 30, speed: 1.8, animPhase: 0, flashTimer: 0, tookDamage: false }));
           this.rescuedCount = 0; this.rescuedPts = 0; this.casualtyCount = 0;
           this.spawnTimer = 0.4; this.relayTimer = 15.0; this.dummy = new THREE.Object3D();
           this.meshes = {
@@ -1724,7 +1919,7 @@
         spawnSoul(type, x, z) {
           const sp = SOUL_TYPES[type];
           const s = this.souls.find((i) => !i.active); if (!s) return null;
-          s.active = true; s.type = type; s.x = x; s.z = z; s.hp = sp.hp; s.maxHp = sp.hp; s.speed = sp.speed; s.animPhase = Math.random() * 6.28; s.flashTimer = 0;
+          s.active = true; s.type = type; s.x = x; s.z = z; s.hp = sp.hp; s.maxHp = sp.hp; s.speed = sp.speed; s.animPhase = Math.random() * 6.28; s.flashTimer = 0; s.tookDamage = false;
           if (type === 'coffin') this.cb.onCoffinSpawn();
           return s;
         }
@@ -1739,8 +1934,10 @@
         }
         damageSoul(soul, rawDmg, barrier) {
           if (!soul.active) return false;
-          if (barrier && barrier.tryAbsorbDamage(soul.x, rawDmg)) return false;
-          soul.hp -= this.isNearPriest(soul.x, soul.z) ? rawDmg * 0.8 : rawDmg;
+          const remainingDamage = barrier ? barrier.damageAfterAbsorption(soul.x, rawDmg) : rawDmg;
+          if (remainingDamage <= 0) return false;
+          soul.hp -= this.isNearPriest(soul.x, soul.z) ? remainingDamage * 0.8 : remainingDamage;
+          soul.tookDamage = true;
           soul.flashTimer = 0.14;
           if (soul.hp <= 0) { soul.active = false; this.casualtyCount++; this.cb.onCasualty(); return true; }
           return false;
@@ -1750,7 +1947,7 @@
           if (this.spawnTimer <= 0) {
             this.spawnTimer = 1.9;
             const r = Math.random();
-            this.spawnSoul(r < 0.8 ? 'general' : r < 0.95 ? 'priest' : 'coffin', FIELD.soulSpawnX, 12.4 + Math.random() * 2.2);
+            this.spawnSoul(r < 0.833 ? 'general' : r < 0.9833 ? 'priest' : 'coffin', FIELD.soulSpawnX, 12.4 + Math.random() * 2.2);
           }
           this.relayTimer -= dt;
           if (this.relayTimer <= 0) { this.relayTimer = 15.0; this.cb.onExpRelay(); }
@@ -1765,7 +1962,7 @@
             if (s.flashTimer > 0) s.flashTimer = Math.max(0, s.flashTimer - dt);
             if (s.x >= FIELD.soulGoalX) {
               s.active = false; this.rescuedCount++; this.rescuedPts += SOUL_TYPES[s.type].rewardPt;
-              if (s.type === 'coffin') this.cb.onCoffinRescued();
+              if (s.type === 'coffin') this.cb.onCoffinRescued(!s.tookDamage);
               continue;
             }
             const sl = this.meshes[s.type], idx = cnt[s.type];
@@ -2004,6 +2201,14 @@
               }
             }
             if (!e.active) continue;
+            // モブ敵との接触でメジェドに 1〜3 ダメージ
+            const pdx = e.x - player.position.x, pdz = e.z - player.position.z;
+            if (pdx * pdx + pdz * pdz <= (e.radius + PLAYER_CFG.bodyRadius) ** 2) {
+              const contactDmg = 1 + Math.floor(Math.random() * 3);
+              if (player.takeDamage(contactDmg)) {
+                this.dmgText.spawn(player.position.x, player.position.z, `-${contactDmg}`, '');
+              }
+            }
             grid.insert(e.index, e.x, e.z);
             const sl = this.meshes[e.type], idx = cnt[e.type]; if (idx >= sl.cap) continue;
             this.dummy.position.set(e.x, 0, e.z); this.dummy.rotation.set(0, e.rotY, 0); this.dummy.scale.setScalar(e.elite ? 1.5 : 1); this.dummy.updateMatrix();
@@ -2196,15 +2401,10 @@
           this.reset();
         }
 
-        // 高品質エジプト太陽の舟（湾曲した三日月パピルス船体＋蓮の船首尾＋ラピス天蓋＋太陽円盤＆光輪）
+        // 高品質エジプト太陽の舟（結合ジオメトリ化により1隻2ドローコールへ最適化）
         buildSolarBarqueModel(scale) {
           const g = new THREE.Group();
-          const goldMat = new THREE.MeshStandardMaterial({ color: 0xe6b82e, metalness: 0.78, roughness: 0.25, emissive: 0x553300, emissiveIntensity: 0.35, flatShading: true });
-          const lapisMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.35, roughness: 0.45, flatShading: true });
-          const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff08a });
-          const haloMat = new THREE.MeshBasicMaterial({ color: 0xffb700, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-
-          // 湾曲した船体（CatmullRomCurve3 による優雅な三日月フォルム）
+          const parts = [];
           const hullCurve = new THREE.CatmullRomCurve3([
             new THREE.Vector3(-0.78, 0.38, 0),
             new THREE.Vector3(-0.52, 0.06, 0),
@@ -2212,49 +2412,44 @@
             new THREE.Vector3(0.52, 0.06, 0),
             new THREE.Vector3(0.78, 0.38, 0),
           ]);
-          const hull = new THREE.Mesh(new THREE.TubeGeometry(hullCurve, 18, 0.13, 8, false), goldMat);
-          hull.scale.set(1, 0.75, 1.45);
-          g.add(hull);
+          const hull = new THREE.TubeGeometry(hullCurve, 16, 0.13, 8, false);
+          hull.scale(1, 0.75, 1.45);
+          parts.push(prepareMergedPart(hull, 0, 0xe6b82e));
 
-          // 船首・船尾の蓮の花フィニアル装飾
           for (const side of [-1, 1]) {
-            const lotus = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.24, 6), goldMat);
-            lotus.position.set(side * 0.82, 0.44, 0);
-            lotus.rotation.z = side * -0.45;
-            g.add(lotus);
-            const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), lapisMat);
-            tip.position.set(side * 0.86, 0.52, 0);
-            g.add(tip);
+            const lotus = new THREE.ConeGeometry(0.11, 0.24, 6);
+            lotus.rotateZ(side * -0.45); lotus.translate(side * 0.82, 0.44, 0);
+            parts.push(prepareMergedPart(lotus, 0, 0xe6b82e));
+            const tip = new THREE.SphereGeometry(0.06, 6, 6);
+            tip.translate(side * 0.86, 0.52, 0);
+            parts.push(prepareMergedPart(tip, 0, 0x1e3a8a));
           }
-
-          // 中央デッキ＆ラピスラズリ神殿天蓋（4本柱＋屋根）
-          const deck = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.08, 0.34), lapisMat);
-          deck.position.set(0, 0.08, 0);
-          g.add(deck);
+          const deck = new THREE.BoxGeometry(0.72, 0.08, 0.34); deck.translate(0, 0.08, 0);
+          parts.push(prepareMergedPart(deck, 0, 0x1e3a8a));
           for (const sx of [-0.24, 0.24]) for (const sz of [-0.11, 0.11]) {
-            const col = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.32, 6), goldMat);
-            col.position.set(sx, 0.26, sz);
-            g.add(col);
+            const col = new THREE.CylinderGeometry(0.022, 0.022, 0.32, 6); col.translate(sx, 0.26, sz);
+            parts.push(prepareMergedPart(col, 0, 0xe6b82e));
           }
-          const canopy = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.06, 0.32), goldMat);
-          canopy.position.set(0, 0.44, 0);
-          g.add(canopy);
+          const canopy = new THREE.BoxGeometry(0.58, 0.06, 0.32); canopy.translate(0, 0.44, 0);
+          parts.push(prepareMergedPart(canopy, 0, 0xe6b82e));
+          const sunDisc = new THREE.SphereGeometry(0.22, 12, 10); sunDisc.translate(0, 0.72, 0);
+          parts.push(prepareMergedPart(sunDisc, 0, 0xfff08a));
 
-          // 太陽円盤＆光背リング（ラーの象徴）
-          const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 10), sunMat);
-          sunDisc.position.set(0, 0.72, 0);
-          g.add(sunDisc);
+          const merged = mergeNonIndexedGeometries(parts);
+          const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0.65, roughness: 0.3, emissive: 0x3a2500, emissiveIntensity: 0.3, flatShading: true });
+          g.add(new THREE.Mesh(merged, bodyMat));
+
+          const haloMat = new THREE.MeshBasicMaterial({ color: 0xffb700, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
           const halo = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.38, 18), haloMat);
           halo.position.set(0, 0.72, 0);
           g.add(halo);
 
-          // 進行方向へ船首が向くよう Y 回転補正
           g.scale.setScalar(scale);
           return g;
         }
 
         reset() {
-          this.levels = { eye_beam: 1 }; this.globalAtkBuffTimer = 0;
+          this.levels = { eye_beam: 1 }; this.globalAtkBuffTimer = 0; this.bonusCapOffset = 0;
           this.beamCd = 0.4; this.beamTelegraph = 0; this.beamVisualTimer = 0;
           for (const b of this.beams) b.visible = false;
           for (const z of this.scorchZones) { z.active = false; z.mesh.visible = false; }
@@ -2276,18 +2471,40 @@
         getTotalLevel() { let s = 0; for (const id of ALL_SKILL_IDS) s += this.getLevel(id); return s; }
         getAverageLevel() { return this.getTotalLevel() / ALL_SKILL_IDS.length; }
 
-        // ユーザー確定ルール：Lv3まで自由、Lv4は平均2.3以上、Lv5は3.3以上…Lv10は8.3以上
+        // ユーザー確定ルール：Lv3まで自由、Lv4は平均2.3以上、Lv5は3.3以上…Lv10は8.3以上（＋ボス撃破の上限解除ボーナス）
         getSkillLevelCap() {
           const avg = this.getAverageLevel();
-          if (avg < 2.3 - 1e-9) return 3;
-          return Math.min(10, Math.floor(avg - 2.3 + 1e-9) + 4);
+          const base = avg < 2.3 - 1e-9 ? 3 : Math.min(10, Math.floor(avg - 2.3 + 1e-9) + 4);
+          return Math.min(10, base + (this.bonusCapOffset || 0));
+        }
+        unlockNextLevelCap() {
+          if (this.getSkillLevelCap() >= 10) return false;
+          this.bonusCapOffset = (this.bonusCapOffset || 0) + 1;
+          return true;
         }
 
-        upgradeSkill(id) {
-          if (id === 'osiris_blessing') { this.globalAtkBuffTimer = 20.0; return false; }
-          const next = Math.min(10, this.getLevel(id) + 1);
+        isAllSkillsMaxed() {
+          return ALL_SKILL_IDS.every((id) => this.getLevel(id) >= 10);
+        }
+        triggerMaxAtkBuff() {
+          this.globalAtkBuffTimer = 5.0;
+        }
+        getLowestSkillId() {
+          let minLv = 10;
+          for (const id of ALL_SKILL_IDS) {
+            const lv = this.getLevel(id);
+            if (lv < minLv) minLv = lv;
+          }
+          if (minLv >= 10) return null;
+          const lowest = ALL_SKILL_IDS.filter((id) => this.getLevel(id) === minLv);
+          return lowest[Math.floor(Math.random() * lowest.length)];
+        }
+        upgradeSkill(id, delta = 1) {
+          if (id === 'osiris_blessing') { this.triggerMaxAtkBuff(); return false; }
+          const prev = this.getLevel(id);
+          const next = Math.min(10, prev + delta);
           this.levels[id] = next;
-          return next === 10;
+          return prev < 10 && next === 10;
         }
 
         rollChoices() {
@@ -2305,13 +2522,14 @@
           return {
             level: lv,
             isCoveringX: (x) => Math.abs(x - self.barrierX) <= self.barrierWidth * 0.5,
-            tryAbsorbDamage: (x, dmg) => {
+            damageAfterAbsorption: (x, dmg) => {
               if (Math.abs(x - self.barrierX) <= self.barrierWidth * 0.5 && self.barrierHp > 0) {
-                self.barrierHp = Math.max(0, self.barrierHp - dmg);
+                const absorbed = Math.min(self.barrierHp, dmg);
+                self.barrierHp -= absorbed;
                 if (self.barrierHp <= 0 && lv < 10) self.barrierActiveTimer = 0;
-                return true;
+                return dmg - absorbed;
               }
-              return false;
+              return dmg;
             },
             getReflectDamage: () => SKILLS_DATA.pyramid_barrier.reflect[lv - 1],
             getSoulSpeedMultiplier: (x) => (lv === 10 && Math.abs(x - self.barrierX) <= self.barrierWidth * 0.5 ? 1.25 : 1.0),
@@ -2496,6 +2714,7 @@
               if (boss.active) {
                 const dx = boss.x - player.position.x, dz = boss.z - player.position.z, d = Math.hypot(dx, dz);
                 if (d <= range + boss.radius && d > 0.01 && (dx / d) * fX + (dz / d) * fZ >= cosH) this.hitBoss(boss, cfg.dmg[idx], 'mouth_flame', isAw, false, 1, buff);
+                boss.damageBouldersInRadius(player.position.x + fX * range * 0.5, player.position.z + fZ * range * 0.5, range * 0.55, cfg.dmg[idx]);
               }
               for (const ci of grid.queryRadius(player.position.x, player.position.z, range)) {
                 const e = enemies.enemies[ci]; if (!e || !e.active) continue;
@@ -2595,9 +2814,12 @@
             b.position.set(bx, 0.85, bz);
             b.rotation.y = -a + Math.PI / 2;
             projectiles.clearInRadius(bx, bz, 1.15);
-            if (boss.active && !this.barqueHitCooldowns.has('boss') && (boss.x - bx) ** 2 + (boss.z - bz) ** 2 <= (boss.radius + 0.9) ** 2) {
-              this.barqueHitCooldowns.set('boss', 0.4);
-              this.hitBoss(boss, cfg.dmg[idx], 'solar_barque', isAw, false, 1, buff);
+            if (boss.active) {
+              boss.damageBouldersInRadius(bx, bz, 1.3, cfg.dmg[idx]);
+              if (!this.barqueHitCooldowns.has('boss') && (boss.x - bx) ** 2 + (boss.z - bz) ** 2 <= (boss.radius + 0.9) ** 2) {
+                this.barqueHitCooldowns.set('boss', 0.4);
+                this.hitBoss(boss, cfg.dmg[idx], 'solar_barque', isAw, false, 1, buff);
+              }
             }
             for (const ci of grid.queryRadius(bx, bz, 1.15)) {
               if (this.barqueHitCooldowns.has(ci)) continue;
@@ -2767,8 +2989,11 @@
             this.nileMesh.position.set(this.nileX, 0.55, this.nileZ);
             this.nileMesh.scale.set(this.nileWidth, isAw ? 1.5 : 1, 1.4);
             const hw = this.nileWidth * 0.5;
-            if (boss.active && !this.nileHitSet.has('boss') && Math.abs(boss.x - this.nileX) <= hw + boss.radius && Math.abs(boss.z - this.nileZ) <= 1.8) {
-              this.nileHitSet.add('boss'); this.hitBoss(boss, cfg.dmg[idx], 'nile_flood', isAw, false, 1, buff);
+            if (boss.active) {
+              boss.damageBouldersInRadius(this.nileX, this.nileZ, hw, cfg.dmg[idx]);
+              if (!this.nileHitSet.has('boss') && Math.abs(boss.x - this.nileX) <= hw + boss.radius && Math.abs(boss.z - this.nileZ) <= 1.8) {
+                this.nileHitSet.add('boss'); this.hitBoss(boss, cfg.dmg[idx], 'nile_flood', isAw, false, 1, buff);
+              }
             }
             for (const ci of grid.querySegmentAABB(this.nileX - hw, this.nileZ, this.nileX + hw, this.nileZ, 1.2)) {
               if (this.nileHitSet.has(ci)) continue;
@@ -2820,6 +3045,7 @@
 
         const luModal = document.getElementById('levelup-modal'), luTitle = document.getElementById('lu-title'), luSub = document.getElementById('lu-sub'), luCards = document.getElementById('lu-cards');
         const chestModal = document.getElementById('chest-modal'), chestReel = document.getElementById('chest-reel'), chestRewards = document.getElementById('chest-rewards'), chestCloseBtn = document.getElementById('chest-close-btn');
+        const brModal = document.getElementById('boss-reward-modal'), brSub = document.getElementById('br-sub'), brUnlockBtn = document.getElementById('br-unlock-btn'), brGrid = document.getElementById('br-grid');
         const pauseModal = document.getElementById('pause-modal'), pauseBody = document.getElementById('pause-body');
         const resultModal = document.getElementById('result-modal');
 
@@ -2849,7 +3075,7 @@
 
         let gameState = 'TITLE';
         let bossIntroTimer = 0, slowMoTimer = 0, hitStopTimer = 0, casualtyFlashTimer = 0, toastTimer = 0;
-        let bossRewardTimer = 0, victoryTimer = 0;
+        let bossRewardTimer = 0, victoryTimer = 0, pendingChests = 0;
         let currentWave = 1, waveElapsed = 0, waveSpawnedCount = 0, waveElitesSpawned = 0, waveSpawnTimer = 0.4;
         let playerLv = 1, currentExp = 0, nextExp = nextExpForLevel(1), pendingLevelUps = 0, bossBonusPts = 0;
         let levelUpOpenedAt = 0, preModalPtrs = new Set(), validModalPtrs = new Set(), currentChoices = [];
@@ -2880,6 +3106,11 @@
           shareLink.href = intent.href;
         };
         renderTitleRecords();
+        document.addEventListener('visibilitychange', () => {
+          if (!audio.ctx) return;
+          if (document.hidden) audio.ctx.suspend().catch(() => {});
+          else if (!audio.muted) audio.ctx.resume().catch(() => {});
+        });
 
         const renderSkillStrip = () => {
           skillStrip.innerHTML = '';
@@ -2898,44 +3129,137 @@
           hudExpFill.style.width = `${Math.min(100, (currentExp / Math.max(1, nextExp)) * 100).toFixed(1)}%`;
         };
 
-        // 宝箱ルーレット（即時1〜3LvUP）
+        let chestIntervalId = 0;
+        let runToken = 0;
+
+        // 宝箱ルーレット：一番レベルの低いスキルを対象に、スロットの揃った目の数（1〜3）だけLvUP
         const openChestRoulette = () => {
+          if (skills.isAllSkillsMaxed()) {
+            skills.triggerMaxAtkBuff();
+            audio.playAwaken();
+            showBanner('✨ 全スキルMAX特典：5秒間 攻撃力+20%！');
+            return;
+          }
+          if (chestIntervalId) { clearInterval(chestIntervalId); chestIntervalId = 0; }
+          const token = runToken;
           gameState = 'CHEST_ROULETTE';
           input.resetAll();
           chestCloseBtn.style.display = 'none';
-          chestRewards.textContent = '神力を抽選中...';
+          chestRewards.textContent = 'スロット回転中...（揃った目の数だけ最低Lvスキル強化！）';
           chestModal.classList.add('visible');
 
-          const spins = 1 + Math.floor(Math.random() * 2); // 1〜2LvUP（最大2つ）
+          const targetId = skills.getLowestSkillId();
+          const targetSkill = SKILLS_DATA[targetId];
+          const otherIcons = ALL_SKILL_IDS.filter((id) => id !== targetId).map((id) => SKILLS_DATA[id].icon);
+          // 1つ(50%) / 2つ揃い(35%) / 3つ揃い(15%)
+          const roll = Math.random();
+          const prevLv = skills.getLevel(targetId);
+          const matchCount = Math.min(10 - prevLv, roll < 0.15 ? 3 : roll < 0.50 ? 2 : 1);
+
           let tick = 0;
-          const icons = ALL_SKILL_IDS.map((id) => SKILLS_DATA[id].icon);
-          const iv = setInterval(() => {
-            chestReel.textContent = `${icons[tick % 8]}  ${icons[(tick + 3) % 8]}  ${icons[(tick + 5) % 8]}`;
+          const allIcons = ALL_SKILL_IDS.map((id) => SKILLS_DATA[id].icon);
+          chestIntervalId = setInterval(() => {
+            if (token !== runToken || gameState !== 'CHEST_ROULETTE') { clearInterval(chestIntervalId); chestIntervalId = 0; return; }
+            chestReel.textContent = `${allIcons[tick % 8]}  ${allIcons[(tick + 3) % 8]}  ${allIcons[(tick + 5) % 8]}`;
             tick++;
-            if (tick >= 12) {
-              clearInterval(iv);
-              const gains = [];
-              for (let i = 0; i < spins; i++) {
-                const choices = skills.rollChoices();
-                const picked = choices[0];
-                if (picked.id === 'osiris_blessing') {
-                  skills.upgradeSkill('osiris_blessing'); souls.healAllSouls();
-                  gains.push('✨ オシリスの祝福（死者全回復＋攻撃+20%）');
-                } else {
-                  const aw = skills.upgradeSkill(picked.id);
-                  playerLv = Math.min(80, playerLv + 1);
-                  const d = SKILLS_DATA[picked.id];
-                  const lv = skills.getLevel(picked.id);
-                  gains.push(aw ? `★ 神格覚醒！ ${d.icon} ${d.awakenedName} (Lv.10)` : `${d.icon} ${d.name} → Lv.${lv}`);
-                }
+            if (tick >= 14) {
+              clearInterval(chestIntervalId); chestIntervalId = 0;
+              // 揃った目の数とスロット表示を完全一致させる
+              if (matchCount === 3) {
+                chestReel.textContent = `${targetSkill.icon}  ${targetSkill.icon}  ${targetSkill.icon}`;
+              } else if (matchCount === 2) {
+                chestReel.textContent = `${targetSkill.icon}  ${targetSkill.icon}  ${otherIcons[0]}`;
+              } else {
+                chestReel.textContent = `${targetSkill.icon}  ${otherIcons[0]}  ${otherIcons[1]}`;
               }
-              chestReel.textContent = '🎁 ✨ 👑';
-              chestRewards.innerHTML = gains.map((g) => `<div>${g}</div>`).join('');
+              const aw = skills.upgradeSkill(targetId, matchCount);
+              const newLv = skills.getLevel(targetId);
+              const actualGain = newLv - prevLv;
+              playerLv = Math.min(80, playerLv + actualGain);
+              const matchLabel = matchCount === 3 ? '🎰 3つ揃い大当たり！(+3 Lv)' : matchCount === 2 ? '✨ 2つ揃い！(+2 Lv)' : '🎁 宝箱獲得 (+1 Lv)';
+              const skillLine = aw
+                ? `★ 神格覚醒！ ${targetSkill.icon} ${targetSkill.awakenedName} (Lv.${prevLv} → Lv.10)`
+                : `${targetSkill.icon} ${targetSkill.name}（Lv.${prevLv} → Lv.${newLv}）`;
+              chestRewards.innerHTML = `<div>${matchLabel}</div><div>${skillLine}</div>`;
               chestCloseBtn.style.display = '';
               audio.playAwaken();
               renderSkillStrip(); updateExpHud();
             }
-          }, 75);
+          }, 70);
+        };
+
+        // ボス撃破報酬モーダル（次のレベル制限解除 or 全8スキルから任意+1／上限適用）
+        const openBossRewardModal = () => {
+          if (skills.isAllSkillsMaxed()) {
+            skills.triggerMaxAtkBuff();
+            audio.playAwaken();
+            showBanner('✨ 全スキルMAX特典：5秒間 攻撃力+20%！');
+            return;
+          }
+          gameState = 'BOSS_REWARD';
+          const openedAt = performance.now();
+          input.resetAll();
+
+          const cap = skills.getSkillLevelCap();
+          brSub.textContent = `現在のスキルレベル上限: Lv.${cap}（全8スキル平均 Lv.${skills.getAverageLevel().toFixed(2)}）`;
+
+          if (cap >= 10) {
+            brUnlockBtn.disabled = true;
+            brUnlockBtn.textContent = '🔓 レベル制限解除済み（最大上限 Lv.10）';
+          } else {
+            brUnlockBtn.disabled = false;
+            brUnlockBtn.textContent = `🔓 次のレベル制限を解除する（上限 Lv.${cap} → Lv.${cap + 1}）`;
+          }
+
+          const finishBossReward = () => {
+            brModal.classList.remove('visible');
+            renderSkillStrip();
+            updateExpHud();
+            if (pendingLevelUps > 0) { pendingLevelUps--; openLevelUpModal(); }
+            else gameState = 'PLAYING';
+          };
+
+          brUnlockBtn.onclick = () => {
+            if (performance.now() - openedAt < 300 || gameState !== 'BOSS_REWARD') return;
+            if (skills.unlockNextLevelCap()) {
+              audio.playAwaken();
+              showBanner(`🔓 スキルレベル上限が Lv.${skills.getSkillLevelCap()} へ解放されました！`);
+              finishBossReward();
+            }
+          };
+
+          brGrid.innerHTML = '';
+          for (const id of ALL_SKILL_IDS) {
+            const d = SKILLS_DATA[id];
+            const lv = skills.getLevel(id);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'br-skill-btn';
+
+            if (lv >= 10) {
+              btn.disabled = true;
+              btn.innerHTML = `<div class="br-skill-icon">${d.icon}</div><div class="br-skill-name">${d.awakenedName}</div><div class="br-skill-meta">Lv.10 MAX</div>`;
+            } else if (lv >= cap) {
+              btn.disabled = true;
+              btn.innerHTML = `<div class="br-skill-icon">${d.icon}</div><div class="br-skill-name">${d.name} (Lv.${lv})</div><div class="br-skill-meta">レベル上限開放前</div>`;
+            } else {
+              const nextLv = lv + 1;
+              const meta = nextLv === 10 ? '★ 神格覚醒 Lv.10 ★' : lv === 0 ? 'NEW! → Lv.1' : `Lv.${lv} → Lv.${nextLv}`;
+              btn.innerHTML = `<div class="br-skill-icon">${d.icon}</div><div class="br-skill-name">${d.name}</div><div class="br-skill-meta">${meta}</div>`;
+              btn.addEventListener('click', () => {
+                if (performance.now() - openedAt < 300 || gameState !== 'BOSS_REWARD') return;
+                const aw = skills.upgradeSkill(id, 1);
+                playerLv = Math.min(80, playerLv + 1);
+                if (aw) { audio.playAwaken(); sceneManager.addShake(0.35); showBanner(`★ 神格覚醒：${d.awakenedName} ★`); }
+                else { audio.playLevelUp(); showBanner(`${d.icon} ${d.name} が Lv.${skills.getLevel(id)} に強化されました！`); }
+                finishBossReward();
+              });
+            }
+            brGrid.appendChild(btn);
+          }
+
+          brModal.classList.add('visible');
+          audio.playLevelUp();
         };
 
         const boss = new BossManager(sceneManager.scene, audio, dmgText, sceneManager, (defeatedType) => {
@@ -2954,7 +3278,7 @@
             sceneManager.setPhase(4);
             player.celebrate = true;
           } else {
-            showBanner('🏆 ボス撃破！黄金宝箱を獲得！');
+            showBanner('🏆 ボス撃破！撃破報酬を選択してください！');
             bossRewardTimer = 0.6;
           }
         });
@@ -2964,6 +3288,9 @@
           gameState = 'RESULT';
           input.resetAll();
           hudRoot.classList.add('hidden');
+          brModal.classList.remove('visible');
+          chestModal.classList.remove('visible');
+          luModal.classList.remove('visible');
           audio.setBgmMode('result');
 
           const cas = souls.casualtyCount;
@@ -3012,8 +3339,16 @@
         };
 
         const openLevelUpModal = () => {
+          if (skills.isAllSkillsMaxed()) {
+            pendingLevelUps = 0;
+            skills.triggerMaxAtkBuff();
+            showBanner('✨ 全スキルMAX特典：5秒間 攻撃力+20%！');
+            gameState = 'PLAYING';
+            return;
+          }
           gameState = 'LEVEL_UP';
           levelUpOpenedAt = performance.now();
+          const token = runToken, openedAt = levelUpOpenedAt;
           preModalPtrs = new Set(input.activePointerIds);
           validModalPtrs = new Set();
           input.resetAll();
@@ -3042,7 +3377,11 @@
           });
           luModal.classList.add('visible');
           audio.playLevelUp();
-          setTimeout(() => { if (gameState === 'LEVEL_UP') luCards.querySelectorAll('.lu-card').forEach((el) => el.classList.remove('guard-locked')); }, 350);
+          setTimeout(() => {
+            if (token === runToken && gameState === 'LEVEL_UP' && levelUpOpenedAt === openedAt) {
+              luCards.querySelectorAll('.lu-card').forEach((el) => el.classList.remove('guard-locked'));
+            }
+          }, 350);
         };
 
         const selectSkillChoice = (idx) => {
@@ -3061,8 +3400,16 @@
           if (gameState === 'VICTORY' || gameState === 'RESULT') return;
           audio.playGem(); currentExp += amt;
           while (currentExp >= nextExp) {
-            currentExp -= nextExp; playerLv = Math.min(80, playerLv + 1); nextExp = nextExpForLevel(playerLv);
-            if (gameState === 'LEVEL_UP' || gameState === 'CHEST_ROULETTE') pendingLevelUps++;
+            currentExp -= nextExp;
+            if (skills.isAllSkillsMaxed()) {
+              skills.triggerMaxAtkBuff();
+              audio.playLevelUp();
+              showBanner('✨ 全スキルMAX特典：5秒間 攻撃力+20%！');
+              nextExp = nextExpForLevel(80);
+              continue;
+            }
+            playerLv = Math.min(80, playerLv + 1); nextExp = nextExpForLevel(playerLv);
+            if (gameState === 'LEVEL_UP' || gameState === 'CHEST_ROULETTE' || gameState === 'BOSS_REWARD') pendingLevelUps++;
             else openLevelUpModal();
           }
           updateExpHud();
@@ -3074,17 +3421,33 @@
             casualtyFlashTimer = 0.35; rightPanel.classList.add('casualty-flash');
             sceneManager.addShake(0.22); audio.playCasualty();
             if (souls.casualtyCount >= 25) dangerVignette.classList.add('active');
-            if (souls.casualtyCount >= 30 && gameState === 'PLAYING') showResult(false);
+            if (souls.casualtyCount >= 30) showResult(false);
           },
           onExpRelay: () => { const c = gems.attractLowerHalf(); if (c > 0) showBanner(`✨ 死者たちの経験値吸引（${c}個転送）`); },
           onCoffinSpawn: () => showBanner('⚱️ ファラオの棺が出現！護衛して宝箱を得よ！'),
-          onCoffinRescued: () => {
+          onCoffinRescued: (undamaged) => {
             if (gameState === 'VICTORY' || gameState === 'RESULT') return;
-            showBanner('🎁 ファラオの棺 護衛成功！黄金宝箱を開封！');
-            openChestRoulette();
+            if (undamaged) {
+              showBanner('🎁 ファラオの棺 無傷護衛成功！黄金宝箱を獲得！');
+              pendingChests++;
+            } else {
+              showBanner('⚱️ ファラオの棺 護衛完了（被弾ありのため宝箱なし・+1,000pt）');
+            }
           },
         });
-        const enemies = new EnemyManager(sceneManager.scene, (e) => gems.spawnForEnemy(e), dmgText, projectiles, recordDmg);
+        const enemies = new EnemyManager(sceneManager.scene, (e) => {
+          gems.spawnForEnemy(e);
+          if (e.type === 'wisp') {
+            audio.playBoom();
+            const ns = souls.findNearestSoul(e.x, e.z);
+            if (ns && (ns.x - e.x) ** 2 + (ns.z - e.z) ** 2 <= 2.3 ** 2) {
+              souls.damageSoul(ns, Math.round(e.attack * 0.9), skills.getBarrierInterface());
+            }
+            if (gameState === 'PLAYING' && (player.position.x - e.x) ** 2 + (player.position.z - e.z) ** 2 <= 2.1 ** 2) {
+              if (player.takeDamage(Math.round(e.attack * 0.8)) && player.hp <= 0) showResult(false);
+            }
+          }
+        }, dmgText, projectiles, recordDmg);
 
         const startWave = (w) => {
           currentWave = Math.min(40, w);
@@ -3111,16 +3474,21 @@
         };
 
         const startNewRun = () => {
+          runToken++;
+          if (chestIntervalId) { clearInterval(chestIntervalId); chestIntervalId = 0; }
+          bossIntroBanner.classList.remove('visible');
+          howtoModal.classList.remove('visible');
           audio.unlock();
           titleScreen.classList.add('hidden');
           resultModal.classList.remove('visible');
           pauseModal.classList.remove('visible');
           luModal.classList.remove('visible');
           chestModal.classList.remove('visible');
+          brModal.classList.remove('visible');
           hudRoot.classList.remove('hidden');
           dangerVignette.classList.remove('active');
           playerLv = 1; currentExp = 0; nextExp = nextExpForLevel(1); pendingLevelUps = 0; bossBonusPts = 0;
-          bossRewardTimer = 0;
+          bossRewardTimer = 0; pendingChests = 0;
           hitStopTimer = 0; slowMoTimer = 0; resetDmgStats();
           input.resetAll(); player.reset(); skills.reset(); gems.reset(); souls.reset(); enemies.reset(); projectiles.reset(); boss.clear();
           renderSkillStrip(); updateExpHud();
@@ -3129,6 +3497,13 @@
         };
 
         const backToTitle = () => {
+          runToken++;
+          if (chestIntervalId) { clearInterval(chestIntervalId); chestIntervalId = 0; }
+          bossIntroBanner.classList.remove('visible');
+          chestModal.classList.remove('visible');
+          brModal.classList.remove('visible');
+          luModal.classList.remove('visible');
+          howtoModal.classList.remove('visible');
           gameState = 'TITLE';
           audio.setBgmMode('title');
           hudRoot.classList.add('hidden');
@@ -3220,13 +3595,13 @@
             sceneManager.update(dt, player.position, false);
             if (bossIntroTimer <= 0) { bossIntroBanner.classList.remove('visible'); gameState = 'PLAYING'; }
           } else if (gameState === 'PLAYING') {
+            const wCfg = WAVES[currentWave];
             if (slowMoTimer > 0) { slowMoTimer = Math.max(0, slowMoTimer - dt); dt *= 0.35; }
             if (hitStopTimer > 0) { hitStopTimer = Math.max(0, hitStopTimer - dt); sceneManager.update(dt, player.position, false); }
             else {
               input.update();
               player.update(dt, input.moveDir.x, input.moveDir.z, input.moveMagnitude);
 
-              const wCfg = WAVES[currentWave];
               waveElapsed += dt;
               hudWaveFill.style.width = wCfg.boss ? '100%' : `${Math.min(100, (waveElapsed / wCfg.dur) * 100).toFixed(1)}%`;
 
@@ -3250,31 +3625,43 @@
                 }
               }
 
-              if (!wCfg.boss && waveElapsed >= wCfg.dur) startWave(currentWave + 1);
-
               const barrier = skills.getBarrierInterface();
               enemies.update(dt, souls, grid, barrier, player);
+              if (player.hp <= 0) { showResult(false); return; }
+              if (gameState === 'RESULT') return;
               boss.update(dt, player, souls, barrier, projectiles, () => showResult(false));
+              if (gameState === 'RESULT') return;
               souls.update(dt, barrier, gems);
-              if (gameState !== 'RESULT') skills.update(dt, player, enemies, boss, souls, grid, projectiles);
-              projectiles.update(dt, player, input, enemies, boss, souls, grid, barrier, (sec) => { hitStopTimer = sec; }, () => showResult(false));
-              gems.update(dt, player.position);
+              if (gameState === 'RESULT') return;
+              skills.update(dt, player, enemies, boss, souls, grid, projectiles);
+              if (gameState === 'PLAYING') {
+                projectiles.update(dt, player, input, enemies, boss, souls, grid, barrier, (sec) => { hitStopTimer = sec; }, () => showResult(false));
+              }
+              if (gameState === 'PLAYING') gems.update(dt, player.position);
               sceneManager.update(dt, player.position, false);
               dmgText.update(dt, sceneManager.camera);
             }
 
-            if (gameState === 'PLAYING' && bossRewardTimer > 0) {
+            if (gameState === 'PLAYING') {
+              const bossRewardReady = bossRewardTimer > 0 && rawDt >= bossRewardTimer;
               bossRewardTimer = Math.max(0, bossRewardTimer - rawDt);
-              if (bossRewardTimer === 0) {
+              if (bossRewardReady) {
                 startWave(currentWave + 1);
+                openBossRewardModal();
+              } else if (pendingChests > 0) {
+                pendingChests--;
                 openChestRoulette();
+              } else if (!wCfg.boss && waveElapsed >= wCfg.dur) {
+                startWave(currentWave + 1);
               }
             }
 
             if (boss.active) {
               bossHpFill.style.width = `${Math.max(0, (boss.hp / boss.maxHp) * 100).toFixed(1)}%`;
+              const chargeWarn = boss.isChargingCancelable ? ' ⚡攻撃準備中(怯み阻止可!)' : '';
+              bossNameLabel.textContent = boss.name + chargeWarn;
               bossCoresLabel.textContent = boss.type === 'apep'
-                ? `コア残存: ${'🟣'.repeat(boss.getAliveCoreCount())}${'⚫'.repeat(3 - boss.getAliveCoreCount())}`
+                ? `コア: ${'🟣'.repeat(boss.getAliveCoreCount())}${'⚫'.repeat(3 - boss.getAliveCoreCount())}`
                 : `${Math.ceil(boss.hp).toLocaleString()} / ${boss.maxHp.toLocaleString()}`;
             }
 

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+1p:wght@500;800;900&display=block" rel="stylesheet">
+<style>
+  :root { --gold: #ffd24a; --gold2: #f0a91c; --ink: #120d1f; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0b0814; }
+  #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden;
+    background: radial-gradient(120% 60% at 50% 50%, #2a1d45 0%, #120c22 55%, #07050d 100%); font-family: 'M PLUS 1p', sans-serif; }
+  /* subtle hieroglyph-like stripes */
+  #stage::before { content: ''; position: absolute; inset: 0; opacity: .12;
+    background: repeating-linear-gradient(90deg, transparent 0 58px, rgba(255,210,74,.35) 58px 60px),
+                repeating-linear-gradient(0deg, transparent 0 58px, rgba(255,210,74,.18) 58px 60px); }
+  #gwrap { position: absolute; left: 0; top: 285px; width: 1080px; height: 1350px; overflow: hidden;
+    box-shadow: 0 0 0 4px var(--gold2), 0 0 60px rgba(240,169,28,.35); }
+  #game { width: 1080px; height: 1350px; object-fit: cover; display: block; scale: var(--z, 1); transform-origin: var(--o, 50% 50%); }
+  .band { position: absolute; left: 0; width: 1080px; display: flex; align-items: center; justify-content: center; text-align: center; }
+  #top { top: 0; height: 285px; flex-direction: column; gap: 6px; }
+  #bottom { top: 1635px; height: 285px; }
+  .logo-sub { font-family: 'M PLUS 1p'; font-weight: 800; letter-spacing: .5em; color: var(--gold); font-size: 26px; }
+  .logo { font-family: 'Dela Gothic One'; font-size: 92px; color: #fff; letter-spacing: .04em;
+    text-shadow: 0 6px 0 #6b3d00, 0 0 30px rgba(255,200,80,.55); }
+  .cap { position: absolute; width: 1080px; padding: 0 40px; text-align: center; font-family: 'Dela Gothic One';
+    color: #fff; line-height: 1.18; opacity: 0;
+    text-shadow: -4px -4px 0 var(--ink), 4px -4px 0 var(--ink), -4px 4px 0 var(--ink), 4px 4px 0 var(--ink), 0 8px 0 var(--ink), 0 0 30px rgba(0,0,0,.6); }
+  .cap.b { top: 1635px; height: 285px; display: flex; flex-direction: column; justify-content: center; font-size: 74px; }
+  .cap .s { font-family: 'M PLUS 1p'; font-weight: 900; font-size: 44px; color: var(--gold); }
+  .cap .m { white-space: nowrap; }
+  .cap em { font-style: normal; color: var(--gold); }
+  .cap.center { top: 760px; font-size: 118px; }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  #end { position: absolute; inset: 0; opacity: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+    background: radial-gradient(80% 50% at 50% 45%, rgba(40,26,70,.55), rgba(8,5,14,.92)); }
+  #end .logo { font-size: 112px; line-height: 1.1; }
+  #end .tag { font-weight: 900; font-size: 50px; color: var(--gold); }
+  #end .cta { margin-top: 30px; font-family: 'Dela Gothic One'; font-size: 64px; color: #1b1100; padding: 26px 60px; border-radius: 28px;
+    background: linear-gradient(180deg, #ffe27a, #f0a91c); box-shadow: 0 10px 0 #8a5300, 0 0 50px rgba(255,200,80,.6); }
+  #end .meta { font-weight: 800; font-size: 34px; color: #e8e0ff; opacity: .9; }
+  #end .hash { font-weight: 800; font-size: 36px; color: #bfb3ff; }
+  @keyframes pop { 0% { opacity: 0; transform: scale(.55) rotate(-3deg); } 12% { opacity: 1; transform: scale(1.1) rotate(1deg); }
+    20% { transform: scale(1) rotate(0); } 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.04); } }
+  @keyframes slam { 0% { opacity: 0; transform: scale(2.4); } 10% { opacity: 1; transform: scale(.94); } 16% { transform: scale(1.03); }
+    22% { transform: scale(1); } 90% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes flash { 0% { opacity: .85; } 100% { opacity: 0; } }
+  @keyframes fadein { 0% { opacity: 0; } 100% { opacity: 1; } }
+  @keyframes rise { 0% { opacity: 0; transform: translateY(40px); } 100% { opacity: 1; transform: none; } }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  @keyframes shake { 0%,100% { transform: translate(0,0); } 20% { transform: translate(-10px,6px); } 40% { transform: translate(8px,-6px); } 60% { transform: translate(-6px,-4px); } 80% { transform: translate(5px,5px); } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="gwrap"><img id="game" alt=""></div>
+  <div id="top" class="band"><div class="logo-sub">ANCIENT EGYPT 3D</div><div class="logo">メジェド神は守ってる</div></div>
+  <div id="caps"></div>
+  <div id="end">
+    <div class="logo-sub">ANCIENT EGYPT 3D SURVIVOR</div>
+    <div class="logo">メジェド神は<br>守ってる</div>
+    <div class="tag">死者たちの行進を、守りぬけ。</div>
+    <div class="cta">今すぐ遊ぶ</div>
+    <div class="meta">ブラウザですぐ遊べる・インストール不要</div>
+    <div class="hash">#メジェド神は守ってる</div>
+  </div>
+  <div class="flash" id="flash"></div>
+</div>
+<script>
+  // Timeline is injected by render.js via window.setup(cfg)
+  window.setup = (cfg) => {
+    const caps = document.getElementById('caps');
+    for (const c of cfg.captions) {
+      const el = document.createElement('div');
+      el.className = 'cap ' + (c.pos || 'b');
+      const i = c.html.indexOf('</span>');
+      el.innerHTML = i >= 0 ? c.html.slice(0, i + 7) + '<div class="m">' + c.html.slice(i + 7) + '</div>' : '<div class="m">' + c.html + '</div>';
+      if (c.size) el.style.fontSize = c.size + 'px';
+      el.style.animation = `${c.anim || 'pop'} ${c.end - c.start}s linear ${c.start}s both`;
+      caps.appendChild(el);
+    }
+    const flash = document.getElementById('flash');
+    flash.style.animation = cfg.flashes.map((t) => `flash .35s ease-out ${t}s forwards`).join(',');
+    const end = document.getElementById('end');
+    end.style.animation = `fadein .5s ease-out ${cfg.endAt}s both`;
+    [...end.children].forEach((el, i) => {
+      el.style.animation = `rise .45s ease-out ${cfg.endAt + 0.15 + i * 0.12}s both` + (el.classList.contains('cta') ? `, pulse 1s ease-in-out ${cfg.endAt + 1.2}s infinite` : '');
+    });
+    const top = document.getElementById('top');
+    top.style.animation = `fadein .4s ease-out ${cfg.logoAt}s both`;
+  };
+  window.seek = (t, src, shake, full, zoom = 1, origin = '50% 50%') => new Promise((resolve) => {
+    document.getAnimations().forEach((a) => { a.pause(); a.currentTime = t * 1000; });
+    const g = document.getElementById('game');
+    document.getElementById('gwrap').style.setProperty('--o', origin);
+    const tr = shake ? `translate(${(Math.sin(t * 90) * shake).toFixed(1)}px, ${(Math.cos(t * 77) * shake).toFixed(1)}px)` : '';
+    g.style.transform = tr;
+    g.style.clipPath = ''; g.dataset.zoom = zoom;
+    document.getElementById('gwrap').style.setProperty('--z', zoom);
+    if (g.getAttribute('src') === src) return resolve();
+    g.onload = () => resolve(); g.src = src;
+  });
+</script>
+</body>
+</html>

@@ -29,11 +29,18 @@
 | `index.html` | ゲーム画面、操作、3Dモデル、音楽・効果音、ゲーム進行をまとめています。 |
 | `vendor/three.r128.min.js` | 3D描画に使う Three.js r128 です。 |
 | `vendor/three.LICENSE.txt` | Three.js の MIT ライセンスです。 |
+| `assets/pc_models_library.js`、`assets/pc-graphics.js` | 高精細モデルと、ゲーム内の動きに合わせる描画処理です。 |
 | `assets/social-card-v1.jpg` | ゲーム内の3Dモデルを使ったURL共有用サムネイルです。 |
 | `ranking-client.js` | プレイ開始と結果を送信し、失敗した送信を再試行します。 |
 | `ranking-manifest.json` | 実験場との連携内容を定義します。 |
 | `supabase/medjed-ranking-v1.sql` | 開始回数と自己ベストの保存、詳細ランキングの取得に使います。 |
 | `.github/workflows/pages.yml` | `main` の更新を GitHub Pages に反映します。 |
+
+## 画質と動作確認
+
+パソコンでは、PC高精細3Dモデル v2.0 を使用します。スマートフォンとタブレットでは軽量描画で起動します。高精細モデルを読み込めない場合も、軽量描画で起動します。
+
+ゲームのURLに `?graphics=high` を付けると、スマートフォンでも同じモデルと演出を試せます。`?graphics=light` を付けると、どの端末でも軽量描画を選べます。どちらの指定も開いたページだけに適用します。
 
 ## 動作確認と公開
 

@@ -3180,6 +3180,14 @@
         } catch {}
 
         let gameState = 'TITLE';
+        const gameStepSeconds = 1 / 60;
+        const maxGameFrameSeconds = 0.1;
+        let lastFrameAt = null;
+        let pendingGameSeconds = 0;
+        const resetFrameClock = () => {
+          lastFrameAt = null;
+          pendingGameSeconds = 0;
+        };
         let bossIntroTimer = 0, slowMoTimer = 0, hitStopTimer = 0, casualtyFlashTimer = 0, toastTimer = 0;
         let bossRewardTimer = 0, victoryTimer = 0, pendingChests = 0;
         let currentWave = 1, waveElapsed = 0, waveSpawnedCount = 0, waveElitesSpawned = 0, waveSpawnTimer = 0.4;
@@ -3187,6 +3195,22 @@
         let levelUpOpenedAt = 0, preModalPtrs = new Set(), validModalPtrs = new Set(), currentChoices = [];
 
         const showBanner = (msg) => { bannerToast.textContent = msg; bannerToast.classList.add('show'); toastTimer = 2.6; };
+        const clearBattleNotices = () => {
+          casualtyFlashTimer = 0;
+          toastTimer = 0;
+          rightPanel.classList.remove('casualty-flash');
+          bannerToast.classList.remove('show');
+        };
+        const updateBattleNotices = (elapsed) => {
+          if (casualtyFlashTimer > 0) {
+            casualtyFlashTimer -= elapsed;
+            if (casualtyFlashTimer <= 0) rightPanel.classList.remove('casualty-flash');
+          }
+          if (toastTimer > 0) {
+            toastTimer -= elapsed;
+            if (toastTimer <= 0) bannerToast.classList.remove('show');
+          }
+        };
 
         const shareLink = document.getElementById('btn-share-x');
         const publicUrl = document.querySelector('link[rel="canonical"]').href;
@@ -3251,6 +3275,8 @@
         };
         renderTitleRecords();
         document.addEventListener('visibilitychange', () => {
+          resetFrameClock();
+          if (document.hidden) input.resetAll();
           if (!audio.ctx) return;
           if (document.hidden) audio.ctx.suspend().catch(() => {});
           else if (!audio.muted) audio.ctx.resume().catch(() => {});
@@ -3430,6 +3456,7 @@
         const showResult = (cleared) => {
           if (gameState === 'RESULT' || (!cleared && gameState === 'VICTORY')) return;
           gameState = 'RESULT';
+          clearBattleNotices();
           input.resetAll();
           hudRoot.classList.add('hidden');
           brModal.classList.remove('visible');
@@ -3646,12 +3673,14 @@
           brModal.classList.remove('visible');
           hudRoot.classList.remove('hidden');
           dangerVignette.classList.remove('active');
+          clearBattleNotices();
           playerLv = 1; currentExp = 0; nextExp = nextExpForLevel(1); pendingLevelUps = 0; bossBonusPts = 0;
           bossRewardTimer = 0; pendingChests = 0;
           hitStopTimer = 0; slowMoTimer = 0; resetDmgStats();
           input.resetAll(); player.reset(); skills.reset(); gems.reset(); souls.reset(); enemies.reset(); projectiles.reset(); boss.clear();
           renderSkillStrip(); updateExpHud();
           gameState = 'PLAYING';
+          resetFrameClock();
           startWave(1);
           rankingRun = ranking?.start(name) ?? null;
           if (rankingRun) ranking.send(rankingRun).then(refreshPlayCount).catch(() => {});
@@ -3666,6 +3695,7 @@
           luModal.classList.remove('visible');
           howtoModal.classList.remove('visible');
           gameState = 'TITLE';
+          clearBattleNotices();
           audio.setBgmMode('title');
           hudRoot.classList.add('hidden');
           resultModal.classList.remove('visible');
@@ -3752,12 +3782,14 @@
           input.resetAll();
           pauseModal.classList.remove('visible');
           gameState = pausedState;
+          resetFrameClock();
         };
         const togglePause = () => {
           if (gameState === 'PAUSED') { resumeGame(); return; }
           if (gameState !== 'PLAYING' && gameState !== 'BOSS_INTRO') return;
           pausedState = gameState;
           gameState = 'PAUSED'; input.resetAll();
+          resetFrameClock();
           pauseBody.textContent = `WAVE ${currentWave}/40 | Lv.${playerLv} | 生還: ${souls.rescuedCount} | 被害: ${souls.casualtyCount}/30`;
           pauseModal.classList.add('visible');
         };
@@ -3871,24 +3903,31 @@
                 ? `コア: ${'🟣'.repeat(boss.getAliveCoreCount())}${'⚫'.repeat(3 - boss.getAliveCoreCount())}`
                 : `${Math.ceil(boss.hp).toLocaleString()} / ${boss.maxHp.toLocaleString()}`;
             }
-
-            if (casualtyFlashTimer > 0) { casualtyFlashTimer -= dt; if (casualtyFlashTimer <= 0) rightPanel.classList.remove('casualty-flash'); }
-            if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) bannerToast.classList.remove('show'); }
           }
         };
 
-        let lastTime = performance.now();
+        const isGameClockRunning = () =>
+          gameState === 'PLAYING' || gameState === 'BOSS_INTRO' || gameState === 'VICTORY';
         const tick = (now) => {
           requestAnimationFrame(tick);
-          const frameDt = Math.min(Math.max((now - lastTime) / 1000, 0.0001), 0.05);
-          lastTime = now;
-          audio.updateBgm(frameDt);
+          if (document.hidden) return;
+          const elapsed = Math.max(0, (now - (lastFrameAt ?? now)) / 1000);
+          lastFrameAt = now;
+          const presentationStep = Math.min(elapsed, 0.05);
+          audio.updateBgm(presentationStep);
+          updateBattleNotices(elapsed);
 
-          const speed = ['PLAYING', 'BOSS_INTRO', 'VICTORY'].includes(gameState) ? gameSpeed : 1;
-          // Split faster frames so projectile and collision updates keep their original maximum step.
-          const steps = Math.ceil(speed);
-          const stepDt = frameDt * speed / steps;
-          for (let step = 0; step < steps; step++) advanceGame(stepDt);
+          if (isGameClockRunning()) {
+            // Use the same simulation step at every speed and limit catch-up after long frames.
+            pendingGameSeconds += Math.min(elapsed, maxGameFrameSeconds) * gameSpeed;
+            while (pendingGameSeconds + 1e-9 >= gameStepSeconds && isGameClockRunning()) {
+              pendingGameSeconds = Math.max(0, pendingGameSeconds - gameStepSeconds);
+              advanceGame(gameStepSeconds);
+            }
+          } else {
+            advanceGame(presentationStep);
+          }
+          if (!isGameClockRunning()) pendingGameSeconds = 0;
           sceneManager.render();
 
           hudHp.textContent = String(Math.ceil(player.hp));

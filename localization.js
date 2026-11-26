@@ -20,11 +20,31 @@
     th: 'ไทย',
   };
   const storageKey = 'medjed_language_v1';
-  let language = 'ja';
-  try {
-    const savedLanguage = localStorage.getItem(storageKey);
-    if (Object.hasOwn(languages, savedLanguage)) language = savedLanguage;
-  } catch {}
+
+  function matchLanguage(tag) {
+    if (!tag) return;
+    const [base, regionOrScript] = tag.toLowerCase().split('-');
+    if (base === 'pt') return 'pt-BR';
+    if (base === 'zh') {
+      return ['hant', 'tw', 'hk', 'mo'].includes(regionOrScript) ? 'zh-Hant' : 'zh-Hans';
+    }
+    if (Object.hasOwn(languages, base)) return base;
+  }
+
+  function initialLanguage() {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (Object.hasOwn(languages, saved)) return saved;
+    } catch {}
+
+    for (const preferred of navigator.languages ?? []) {
+      const match = matchLanguage(preferred);
+      if (match) return match;
+    }
+    return matchLanguage(navigator.language) ?? 'ja';
+  }
+
+  let language = initialLanguage();
 
   function translate(key, values = {}) {
     const message = messages[language][key] ?? messages.ja[key] ?? key;
@@ -68,9 +88,9 @@
       option.lang = tag;
       option.textContent = label;
       option.addEventListener('click', () => {
+        try { localStorage.setItem(storageKey, tag); } catch {}
         if (tag !== language) {
           language = tag;
-          try { localStorage.setItem(storageKey, language); } catch {}
           render();
           document.dispatchEvent(new Event('medjedlanguagechange'));
         }

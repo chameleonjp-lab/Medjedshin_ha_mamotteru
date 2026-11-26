@@ -1917,6 +1917,7 @@
         takeDamage(rawDmg, skillId, isAwaken, isAnubis, anubisLv) {
           if (!this.active) return false;
           let dmg = rawDmg;
+          let stunDuration = 0;
           if (isAnubis) {
             dmg *= SKILLS_DATA.anubis_scales.bossMult[anubisLv - 1];
             if (anubisLv === 10) dmg += Math.round(this.hp * 0.05);
@@ -1932,7 +1933,7 @@
                 if (targetCore.hp <= 0) {
                   targetCore.alive = false;
                   targetCore.mesh.visible = false;
-                  this.state = 'stunned'; this.timer = 1.2;
+                  stunDuration = 1.2;
                   this.sceneManager.addShake(0.5);
                   this.dmgText.spawn(this.x, this.z, t('coreDestroyed'), 'awaken');
                 }
@@ -1955,16 +1956,19 @@
           if (this.isChargingCancelable) {
             this.chargeDmgAccum += dmg;
             if (this.chargeDmgAccum >= this.cancelThreshold) {
-              this.isChargingCancelable = false;
-              this.state = 'stunned'; this.timer = 2.1;
-              this.telegraphMesh.visible = false;
-              this.warnCircle.visible = false;
-              this.sphinxLaser.visible = false;
-              this.sceneManager.setSandstorm(false);
+              stunDuration = 2.1;
               this.dmgText.spawn(this.x, this.z, t('interrupted'), 'reflect');
               this.audio.playReflect();
               this.sceneManager.addShake(0.4);
             }
+          }
+          if (stunDuration > 0) {
+            this.state = 'stunned'; this.timer = stunDuration;
+            this.isChargingCancelable = false;
+            this.telegraphMesh.visible = false;
+            this.warnCircle.visible = false;
+            this.sphinxLaser.visible = false;
+            this.sceneManager.setSandstorm(false);
           }
 
           const finalDmg = Math.max(1, Math.round(dmg));

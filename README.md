@@ -1,2 +1,26 @@
-# Medjedshin_ha_mamotteru
-メジェド神は守ってる
+# メジェド神は守ってる
+
+メジェド神を動かし、古代エジプトの冥界で死者たちの行進を守る3Dアクションゲームです。40ウェーブ目の大蛇アペプを倒すとクリアです。死者の被害が30体に達するか、メジェドの体力が0になると敗北します。
+
+[ゲームを遊ぶ（GitHub Pages）](https://chameleonjp-lab.github.io/Medjedshin_ha_mamotteru/)
+
+## 遊び方
+
+スマートフォンでは、戦場の画面に触れてそのまま指を動かすと移動できます。パソコンでは WASD または矢印キーで移動し、Esc または P キーで一時停止します。
+
+攻撃は自動で発動します。敵が落とす経験値を集めると、スキルを選んで取得・強化できます。画面のカードを押すか、パソコンなら 1〜3 キーで選びます。ハイスコア・最高到達ウェーブ・ベストランクは、遊んだブラウザに保存されます。
+
+## ファイル構成
+
+| ファイル | 内容 |
+| --- | --- |
+| `index.html` | ゲーム画面、操作、3Dモデル、音楽・効果音、ゲーム進行をまとめています。 |
+| `vendor/three.r128.min.js` | 3D描画に使う Three.js r128 です。 |
+| `vendor/three.LICENSE.txt` | Three.js の MIT ライセンスです。 |
+| `.github/workflows/pages.yml` | `main` の更新を GitHub Pages に反映します。 |
+
+## 動作確認と公開
+
+ビルドは不要です。ローカルで確認する場合は、リポジトリのルートで `python3 -m http.server 8000` を実行し、ブラウザで `http://localhost:8000/` を開きます。プレイには、ブラウザで3Dを描画する機能（WebGL）が必要です。
+
+初回はリポジトリの **Settings → Pages → Build and deployment → Source** で **GitHub Actions** を選びます。設定後、PRを `main` にマージすると自動で公開されます。手動で再公開する場合は、**Actions → Deploy game to GitHub Pages → Run workflow** から `main` を選びます。

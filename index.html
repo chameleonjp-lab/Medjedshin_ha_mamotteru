@@ -118,7 +118,7 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.5); transition: background 0.15s, transform 0.12s;
     }
     .title-sub-btn:hover { background: rgba(30, 38, 68, 0.95); transform: translateY(-1px); }
-    .x-share { display: grid; place-items: center; background: #08090c; color: #fff; text-align: center; text-decoration: none; }
+    .x-post-button { display: grid; place-items: center; min-height: 44px; background: #08090c; color: #fff; text-align: center; }
     #howto-modal {
       position: fixed; inset: 0; background: rgba(6, 9, 20, 0.84); backdrop-filter: blur(5px);
       display: none; align-items: center; justify-content: center; z-index: 55; padding: 16px;
@@ -437,7 +437,7 @@
           </div>
           <button type="button" class="title-sub-btn" id="btn-howto" disabled>ゲーム説明</button>
           <button type="button" class="title-sub-btn" id="btn-settings" disabled>設定</button>
-          <a class="title-sub-btn x-share" id="btn-share-x" href="https://twitter.com/intent/tweet?text=%E3%83%A1%E3%82%B8%E3%82%A7%E3%83%89%E7%A5%9E%E3%81%AF%E5%AE%88%E3%81%A3%E3%81%A6%E3%82%8B" target="_blank" rel="noopener noreferrer">Xにシェア</a>
+          <button type="button" class="title-sub-btn x-post-button" id="home-x-post">Xにシェア</button>
         </div>
       </div>
     </div>
@@ -593,7 +593,7 @@
         </div>
         <div class="modal-actions result-actions">
           <button type="button" class="modal-primary-btn" id="res-retry-btn">もう一度遊ぶ</button>
-          <a class="modal-secondary-btn x-share" id="res-share-x" target="_blank" rel="noopener noreferrer">Xにシェア</a>
+          <button type="button" class="modal-secondary-btn x-post-button" id="result-x-post">Xにシェア</button>
           <button type="button" class="modal-secondary-btn" id="res-title-btn">ホーム</button>
           <a class="modal-secondary-btn" id="res-ranking" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=medjedshin_ha_mamotteru" target="_blank" rel="noopener noreferrer">ランキング</a>
         </div>
@@ -608,6 +608,17 @@
   <script>
     (function () {
       'use strict';
+
+      const publicUrl = document.querySelector('link[rel="canonical"]').href;
+      const gameName = document.title;
+      const openXPost = (...lines) => {
+        const intent = new URL('https://x.com/intent/tweet');
+        intent.searchParams.set('text', [...lines, `#${gameName}`, publicUrl].join('\n'));
+        window.open(intent.href, '_blank', 'noopener,noreferrer');
+      };
+      document.getElementById('home-x-post').addEventListener('click', () => {
+        openXPost(gameName, '冥界で死者たちの行進を守れ！40ウェーブの3Dアクション。');
+      });
 
       const showStartupError = (message) => {
         const startupError = document.getElementById('startup-error');
@@ -3212,16 +3223,10 @@
           }
         };
 
-        const shareLink = document.getElementById('btn-share-x');
-        const publicUrl = document.querySelector('link[rel="canonical"]').href;
-        const gameName = document.title;
-        const makeShareLink = (...lines) => {
-          const intent = new URL('https://twitter.com/intent/tweet');
-          intent.searchParams.set('text', [...lines, `#${gameName}`, publicUrl].join('\n'));
-          return intent.href;
-        };
-        shareLink.href = makeShareLink(gameName, '冥界で死者たちの行進を守れ！40ウェーブの3Dアクション。');
-        const resultShare = document.getElementById('res-share-x');
+        let resultShareLines = [];
+        document.getElementById('result-x-post').addEventListener('click', () => {
+          if (gameState === 'RESULT') openXPost(...resultShareLines);
+        });
         const nameInput = document.getElementById('player-name');
         const ranking = window.MedjedRanking;
         const rankingStatus = document.getElementById('result-ranking-status');
@@ -3484,7 +3489,7 @@
           document.getElementById('res-sub').textContent = cleared ? '大蛇アペプを打ち倒し、死者たちをオシリスの館へ導いた！' : `WAVE ${currentWave} で力尽きた`;
           document.getElementById('res-rank').textContent = rank;
           document.getElementById('res-score').innerHTML = `${finalScore.toLocaleString()}${isNewRec ? '<span class="new-rec">NEW RECORD!</span>' : ''}`;
-          resultShare.href = makeShareLink(`スコア ${finalScore.toLocaleString()}点`, `到達ウェーブ ${currentWave} / 40`);
+          resultShareLines = [`スコア ${finalScore.toLocaleString()}点`, `到達ウェーブ ${currentWave} / 40`];
           rankingStatus.textContent = '';
           rankingRetry.hidden = true;
           if (rankingRun?.name) {

@@ -194,6 +194,12 @@
       this.dirty = true;
     }
 
+    setVisible(visible) {
+      for (const batch of this.batches.values()) {
+        for (const { mesh } of batch.parts) mesh.visible = visible;
+      }
+    }
+
     sync(actors) {
       const dt = this.elapsed;
       if (!this.dirty && dt === 0) return;
@@ -251,7 +257,7 @@
     return model;
   }
 
-  function useDetailedSkills(models, skills) {
+  function createDetailedSkills(models, skills) {
     const effect = (id, level) => models.createSkillShowcase(id, id, { effectOnly: true, level });
     const eye = effect("eye_beam", 10).parts.rings[0];
     const rings = skills.beams.map((beam) => Array.from({ length: 4 }, (_, i) => {
@@ -263,13 +269,14 @@
     }));
 
     const flame = effect("mouth_flame", 1).parts.flames[0].m;
-    skills.flameMesh.geometry.dispose();
-    skills.flameMesh.geometry = flame.geometry;
+    const lightFlame = skills.flameMesh.geometry;
+    const lightFlameColor = skills.flameMesh.material.color.clone();
+    const particleTints = new THREE.InstancedBufferAttribute(new Float32Array(skills.flameParticles.length * 3), 3);
+    particleTints.setUsage(THREE.DynamicDrawUsage);
     const flameColors = [0xffe044, 0xff4500, 0x00f0ff, 0x0055ff].map((hex) => new THREE.Color(hex));
 
     const step = effect("invisible_step", 10).parts.rings;
-    skills.shockwaveMesh.geometry.dispose();
-    skills.shockwaveMesh.geometry = step[0].ring.geometry;
+    const lightShockwave = skills.shockwaveMesh.geometry;
     const ripples = step.slice(1).map(({ ring }, i) => {
       const ripple = new THREE.Mesh(ring.geometry, ring.material);
       ripple.position.z = 0.06 * (i + 1);
@@ -279,24 +286,18 @@
     });
 
     const scarab = effect("scarab_swarm", 1).parts.scarabs[0].sc;
-    skills.scarabMesh.geometry.dispose();
-    skills.scarabMesh.material.dispose();
-    skills.scarabMesh.geometry = scarab.geometry;
-    skills.scarabMesh.material = scarab.material;
+    const lightScarab = { geometry: skills.scarabMesh.geometry, material: skills.scarabMesh.material };
 
     const scales = effect("anubis_scales", 1).parts.scales[0].bar;
-    for (const slot of skills.scalesPool) {
-      // The position and tilt follow the chosen target and hit timing.
+    const scaleBars = skills.scalesPool.map((slot) => {
+      const light = slot.bar;
       const detail = scales.clone();
-      detail.position.copy(slot.bar.position);
-      slot.g.remove(slot.bar);
-      slot.bar.geometry.dispose();
+      detail.position.copy(light.position);
       slot.g.add(detail);
-      slot.bar = detail;
-    }
+      return { slot, light, detail };
+    });
 
-    disposeModel(skills.barrierGroup);
-    skills.barrierGroup.clear();
+    const lightBarrier = skills.barrierGroup.children.slice();
     const pyramids = [1, 5, 10].map((level) => {
       const { fx } = effect("pyramid_barrier", level);
       const bounds = new THREE.Box3().setFromObject(fx);
@@ -308,8 +309,7 @@
       return fx;
     });
 
-    skills.nileMesh.geometry.dispose();
-    skills.nileMesh.material.dispose();
+    const lightWave = { geometry: skills.nileMesh.geometry, material: skills.nileMesh.material };
     const waves = [1, 5, 10].map((level) => {
       const wave = effect("nile_flood", level).parts.wave.children[0];
       wave.updateMatrix();
@@ -322,10 +322,63 @@
       return wave;
     });
 
+    const barques = [...skills.barques, skills.giantBarque].map((slot) => {
+      const light = slot.children.slice();
+      const detail = buildSolarBarque(models);
+      detail.group.position.y = -0.42;
+      detail.group.scale.setScalar(0.55);
+      slot.add(detail.group);
+      return { slot, light, detail };
+    });
+
     let elapsed = 0;
+    let enabled;
     return {
+      setEnabled(active) {
+        if (enabled === active) return;
+        enabled = active;
+
+        skills.flameMesh.geometry = active ? flame.geometry : lightFlame;
+        skills.flameMesh.instanceColor = active ? particleTints : null;
+        if (!active) {
+          const lightColor = skills.getLevel("mouth_flame") === 10 ? 0x00d4ff : 0xff6a00;
+          if (skills.flameMesh.count) skills.flameMesh.material.color.setHex(lightColor);
+          else skills.flameMesh.material.color.copy(lightFlameColor);
+        }
+        skills.flameMesh.material.needsUpdate = true;
+        skills.shockwaveMesh.geometry = active ? step[0].ring.geometry : lightShockwave;
+        const scarabVisual = active ? scarab : lightScarab;
+        skills.scarabMesh.geometry = scarabVisual.geometry;
+        skills.scarabMesh.material = scarabVisual.material;
+
+        for (const { slot, light, detail } of scaleBars) {
+          const next = active ? detail : light;
+          next.rotation.copy(slot.bar.rotation);
+          slot.bar = next;
+          light.visible = !active;
+          detail.visible = active;
+        }
+        for (const { light, detail } of barques) {
+          light.forEach((part) => { part.visible = !active; });
+          detail.group.visible = active;
+        }
+        lightBarrier.forEach((part) => { part.visible = !active; });
+
+        if (active) this.update(0);
+        else {
+          rings.forEach((row) => row.forEach((ring) => { ring.visible = false; }));
+          ripples.forEach((ripple) => { ripple.visible = false; });
+          pyramids.forEach((pyramid) => { pyramid.visible = false; });
+          skills.nileMesh.geometry = lightWave.geometry;
+          skills.nileMesh.material = lightWave.material;
+        }
+      },
       update(dt) {
+        if (!enabled) return;
         elapsed += dt;
+        for (const { slot, detail } of barques) {
+          if (slot.visible) detail.update(dt);
+        }
         const eyeLevel = skills.getLevel("eye_beam");
         eye.material.opacity = skills.beamOuterMat.opacity * 0.85;
         rings.forEach((row, i) => row.forEach((ring, j) => {
@@ -361,5 +414,5 @@
     };
   }
 
-  window.MedjedHighGraphics = { CrowdModels, createBoss, disposeModel, studioReflection, buildSolarBarque, useDetailedSkills };
+  window.MedjedHighGraphics = { CrowdModels, createBoss, disposeModel, studioReflection, createDetailedSkills };
 })();

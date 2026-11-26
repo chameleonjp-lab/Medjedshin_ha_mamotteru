@@ -5,8 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>メジェド神は守ってる</title>
   <meta name="description" content="メジェド神となって、40ウェーブの魔物と4柱のボスから死者たちの行進を守る3Dアクションゲーム。" />
+  <meta name="chameleonjp-release" content="medjedshin_ha_mamotteru-20261126-01" />
   <link rel="canonical" href="https://chameleonjp-lab.github.io/Medjedshin_ha_mamotteru/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://chameleonjp-lab.github.io/Medjedshin_ha_mamotteru/" />
+  <meta property="og:title" content="メジェド神は守ってる" />
+  <meta property="og:description" content="冥界で死者たちの行進を守れ！40ウェーブの3Dアクション。" />
+  <meta property="og:image" content="https://chameleonjp-lab.github.io/Medjedshin_ha_mamotteru/assets/social-card-v1.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="砂漠の戦場に立つメジェド神、死者たちの行進、奥に迫る大蛇アペプ" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://chameleonjp-lab.github.io/Medjedshin_ha_mamotteru/assets/social-card-v1.jpg" />
+  <meta name="twitter:image:alt" content="砂漠の戦場に立つメジェド神、死者たちの行進、奥に迫る大蛇アペプ" />
   <script src="./vendor/three.r128.min.js"></script>
+  <script src="./ranking-client.js?v=20261126-01"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -23,10 +36,9 @@
       overflow: hidden;
       background: #0c0e1a;
       font-family: 'Inter', 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
-      touch-action: none;
     }
 
-    #game-canvas { display: block; width: 100%; height: 100%; }
+    #game-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
     #dmg-layer { position: fixed; inset: 0; pointer-events: none; z-index: 8; overflow: hidden; }
     .dmg-num {
@@ -48,11 +60,13 @@
     #title-screen {
       position: fixed; inset: 0; z-index: 50;
       display: flex; flex-direction: column; justify-content: space-between; align-items: center;
-      padding: max(20px, env(safe-area-inset-top)) 16px max(40px, calc(env(safe-area-inset-bottom) + 28px));
+      gap: 12px; overflow-y: auto; overscroll-behavior: contain;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+        max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
       background: radial-gradient(circle at 50% 45%, rgba(14, 18, 34, 0.15), rgba(8, 10, 20, 0.72));
     }
     #title-screen.hidden { display: none; }
-    .title-header { text-align: center; margin-top: 10px; }
+    .title-header { text-align: center; margin-top: 10px; flex-shrink: 0; }
     .title-eyebrow {
       font-size: 12px; font-weight: 800; letter-spacing: 0.28em; color: #ffd700;
       text-shadow: 0 2px 10px rgba(0,0,0,0.8);
@@ -65,13 +79,29 @@
     .title-sub { font-size: 13px; color: #e2dac9; margin-top: 6px; text-shadow: 0 2px 8px #000; }
 
     .title-footer {
-      display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 380px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; max-width: 380px;
+      margin-top: auto; flex-shrink: 0;
     }
     .title-btn-stack {
-      display: flex; flex-direction: column; gap: 10px; width: 100%;
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; width: 100%;
     }
+    .title-btn-stack > :not(#btn-howto, #btn-settings) { grid-column: 1 / -1; }
+    .name-field, .settings-toggle {
+      display: grid; gap: 4px; color: #f4f1ea; font-size: 13px; text-align: left;
+    }
+    .name-field {
+      padding: 8px 10px; border-radius: 10px; background: rgba(14, 18, 34, 0.9);
+      border: 1px solid rgba(212, 175, 55, 0.72);
+    }
+    .name-field label { font-weight: 800; }
+    .name-field input {
+      width: 100%; min-height: 36px; padding: 5px 9px; color: #fff; background: #0c0e1a;
+      border: 1px solid #a2966e; border-radius: 6px; font-size: 16px;
+      user-select: text; -webkit-user-select: text;
+    }
+    .name-note { color: #e2dac9; font-size: 11px; line-height: 1.35; }
     .play-cta {
-      width: 100%; padding: 14px 20px; border-radius: 14px; border: 2px solid #fff3b0;
+      width: 100%; min-height: 48px; padding: 10px 14px; border-radius: 14px; border: 2px solid #fff3b0;
       background: linear-gradient(135deg, #ffd700, #c89116);
       color: #141210; font-size: 17px; font-weight: 900; letter-spacing: 0.08em; cursor: pointer;
       box-shadow: 0 0 28px rgba(255, 215, 0, 0.55), 0 6px 20px rgba(0,0,0,0.6);
@@ -82,18 +112,20 @@
     .play-cta:disabled, .title-sub-btn:disabled { opacity: 0.55; cursor: default; }
     .startup-error { color: #ffe2af; font-size: 14px; text-align: center; line-height: 1.55; }
     .title-sub-btn {
-      width: 100%; padding: 12px 18px; border-radius: 12px; border: 1.5px solid #d4af37;
+      width: 100%; min-height: 44px; padding: 9px 12px; border-radius: 12px; border: 1.5px solid #d4af37;
       background: rgba(14, 18, 34, 0.88); color: #f4f1ea;
       font-size: 15px; font-weight: 800; letter-spacing: 0.05em; cursor: pointer;
       box-shadow: 0 4px 14px rgba(0,0,0,0.5); transition: background 0.15s, transform 0.12s;
     }
     .title-sub-btn:hover { background: rgba(30, 38, 68, 0.95); transform: translateY(-1px); }
-    .title-sub-btn.x-share { border-color: #38bdf8; color: #e0f2fe; text-align: center; text-decoration: none; }
+    .x-share { display: grid; place-items: center; background: #08090c; color: #fff; text-align: center; text-decoration: none; }
     #howto-modal {
       position: fixed; inset: 0; background: rgba(6, 9, 20, 0.84); backdrop-filter: blur(5px);
       display: none; align-items: center; justify-content: center; z-index: 55; padding: 16px;
     }
     #howto-modal.visible { display: flex; }
+    #home-settings { position: fixed; margin: auto; width: min(360px, calc(100% - 28px)); }
+    #home-settings::backdrop { background: rgba(6, 9, 20, 0.84); backdrop-filter: blur(5px); }
     .howto-list {
       text-align: left; font-size: 12.5px; color: #e2dac9; line-height: 1.65;
       margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;
@@ -103,7 +135,7 @@
     .title-records {
       display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
       background: rgba(14, 18, 34, 0.84); border: 1.5px solid #d4af37; border-radius: 10px;
-      padding: 8px 16px; color: #f4f1ea; font-size: 12px; width: 100%;
+      padding: 7px 8px; color: #f4f1ea; font-size: 12px; width: 100%; gap: 4px 12px;
     }
     .title-records span strong { color: #ffd700; }
 
@@ -328,6 +360,17 @@
       background: rgba(30, 36, 62, 0.9); color: #f4f1ea; border: 1.5px solid #d4af37;
       border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
     }
+    .result-actions {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .result-actions > * {
+      display: grid; place-items: center; min-height: 44px; text-align: center;
+      text-decoration: none; touch-action: manipulation;
+    }
+    .settings-toggle { display: flex; min-height: 34px; align-items: center; gap: 8px; }
+    .settings-toggle input { accent-color: #ffd700; }
+    .ranking-feedback { margin-bottom: 12px; color: #e2dac9; font-size: 12px; }
+    .ranking-feedback button { min-height: 44px; margin-top: 4px; }
 
     #joystick-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
     #joystick-base {
@@ -345,6 +388,13 @@
       .hud-right { gap: 7px; padding: 5px 8px; }
       .hud-stat { min-width: 36px; }
       .hud-stat-value { font-size: 13px; }
+    }
+    @media (orientation: landscape) and (max-height: 520px) {
+      #title-screen { flex-direction: row; align-items: center; }
+      .title-header, .title-footer { flex-shrink: 1; width: 50%; margin: 0; }
+      .title-header { text-align: left; align-self: flex-start; max-width: 38%; }
+      .title-logo { font-size: clamp(21px, 4vw, 34px); }
+      .title-sub { font-size: 11px; }
     }
   </style>
 </head>
@@ -365,15 +415,22 @@
       <div class="title-footer">
         <div class="title-records" id="title-records">
           <span>ハイスコア: <strong id="rec-score">0</strong></span>
-          <span>最高Wave: <strong id="rec-wave">0</strong></span>
+          <span>最高ウェーブ: <strong id="rec-wave">0</strong></span>
           <span>ベストランク: <strong id="rec-rank">-</strong></span>
+          <span id="rec-plays-row" hidden>プレー回数: <strong id="rec-plays"></strong></span>
         </div>
         <div class="title-btn-stack">
           <p class="startup-error" id="startup-error" role="alert" hidden></p>
           <noscript><p class="startup-error">遊ぶには、ブラウザで JavaScript を有効にしてください。</p></noscript>
           <button type="button" class="play-cta" id="btn-play" disabled>ゲーム開始</button>
+          <div class="name-field">
+            <label for="player-name">名前（任意）</label>
+            <input type="text" id="player-name" autocomplete="nickname" spellcheck="false" aria-describedby="name-note" />
+            <small class="name-note" id="name-note">20文字まで。名前を入れると、名前とスコアがランキングに公開されます。空欄でも遊べます。</small>
+          </div>
           <button type="button" class="title-sub-btn" id="btn-howto" disabled>ゲーム説明</button>
-          <a class="title-sub-btn x-share" id="btn-share-x" href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fchameleonjp-lab.github.io%2FMedjedshin_ha_mamotteru%2F" target="_blank" rel="noopener noreferrer">Xにシェア</a>
+          <button type="button" class="title-sub-btn" id="btn-settings" disabled>設定</button>
+          <a class="title-sub-btn x-share" id="btn-share-x" href="https://twitter.com/intent/tweet?text=%E3%83%A1%E3%82%B8%E3%82%A7%E3%83%89%E7%A5%9E%E3%81%AF%E5%AE%88%E3%81%A3%E3%81%A6%E3%82%8B" target="_blank" rel="noopener noreferrer">Xにシェア</a>
         </div>
       </div>
     </div>
@@ -384,7 +441,7 @@
         <div class="modal-title">メジェド神は守ってる — 遊び方</div>
         <div class="howto-list">
           <div><strong>■ 基本ルール</strong><br>画面下部の石畳を左から右へ行進する「死者たち」を、迫り来る魔物や神々から守り抜きます。Wave 40の最終ボス「大蛇アペプ」撃破でクリア！死者被害が30体、またはメジェドHPが0になると敗北です。</div>
-          <div><strong>■ 操作方法</strong><br>PCは <strong>WASD / 矢印キー</strong>、スマホは <strong>画面の任意位置をドラッグ（バーチャルジョイスティック）</strong>で移動します。攻撃スキルはすべて自動発動します。</div>
+          <div><strong>■ 操作方法</strong><br>パソコンでは、マウスを動かした方向へメジェドが移動します。Sキーか画面の「停止」で一時停止メニューを開けます。スマホでは、戦場に触れて指を動かすと移動できます。攻撃は自動で発動します。</div>
           <div><strong>■ 布の弾き返し（盾アクション）</strong><br>毒サソリの毒弾やアヌビス弓兵の矢に向かって移動入力で体当たりすると、被ダメージ無効で<strong>3倍威力の反射弾</strong>を撃ち返します！</div>
           <div><strong>■ スキル育成＆神格覚醒（全8種×Lv10）</strong><br>敵撃破で落ちる経験値ジェムを集めてレベルアップ。Lv3までは自由に強化でき、Lv4は全8スキル平均Lv2.3以上（以降+1.0ごと）で段階解放されます。Lv10到達で強力な<strong>神格覚醒</strong>が発動します。</div>
           <div><strong>■ 黄金宝箱とボス撃破報酬</strong><br>ファラオの棺を<strong>無傷で護衛</strong>すると黄金宝箱を獲得します。スロットの出目に応じて、最もレベルの低いスキルが1〜3レベル上がります。ボスが大技をためている間に一定のダメージを与えると、発動を止められます。第10・20・30ウェーブのボスを倒すと、レベル上限を1段階上げるか、上限内で好きなスキルを1レベル強化できます。全スキルが最大レベルなら、強化報酬は5秒間の攻撃力+20%になります。</div>
@@ -392,6 +449,14 @@
         <button type="button" class="modal-primary-btn" id="howto-close-btn">閉じる</button>
       </div>
     </div>
+
+    <dialog id="home-settings" class="modal-card" aria-labelledby="home-settings-title">
+      <h2 class="modal-title" id="home-settings-title">設定</h2>
+      <div class="vol-row"><label for="home-vol-bgm">音楽の音量</label><input type="range" id="home-vol-bgm" min="0" max="1" step="0.05" /></div>
+      <div class="vol-row"><label for="home-vol-se">効果音の音量</label><input type="range" id="home-vol-se" min="0" max="1" step="0.05" /></div>
+      <label class="settings-toggle"><input type="checkbox" id="home-mute" /> 音を消す</label>
+      <form method="dialog" class="modal-actions"><button class="modal-primary-btn">閉じる</button></form>
+    </dialog>
 
     <!-- インゲームHUD -->
     <div id="hud-root" class="hidden">
@@ -482,8 +547,8 @@
       <div class="modal-card">
         <div class="modal-title">一時停止・設定</div>
         <div class="modal-body" id="pause-body"></div>
-        <div class="vol-row"><span>BGM音量</span><input type="range" id="vol-bgm" min="0" max="1" step="0.05" value="0.5" /></div>
-        <div class="vol-row"><span>SE音量</span><input type="range" id="vol-se" min="0" max="1" step="0.05" value="0.7" /></div>
+        <div class="vol-row"><label for="vol-bgm">音楽の音量</label><input type="range" id="vol-bgm" min="0" max="1" step="0.05" /></div>
+        <div class="vol-row"><label for="vol-se">効果音の音量</label><input type="range" id="vol-se" min="0" max="1" step="0.05" /></div>
         <div class="modal-actions" style="margin-top:14px;">
           <button type="button" class="modal-primary-btn" id="pause-resume-btn">再開</button>
           <button type="button" class="modal-secondary-btn" id="pause-restart-btn">リトライ</button>
@@ -509,9 +574,15 @@
         <div class="result-grid" id="res-grid"></div>
         <div style="font-size:11px;color:#ffd700;font-weight:800;margin-bottom:6px;">スキル別ダメージ貢献度</div>
         <div class="dmg-chart" id="res-dmg-chart"></div>
-        <div class="modal-actions">
+        <div class="ranking-feedback">
+          <p id="result-ranking-status" role="status"></p>
+          <button type="button" class="modal-secondary-btn" id="result-ranking-retry" hidden>記録を再送する</button>
+        </div>
+        <div class="modal-actions result-actions">
           <button type="button" class="modal-primary-btn" id="res-retry-btn">もう一度遊ぶ</button>
-          <button type="button" class="modal-secondary-btn" id="res-title-btn">タイトルへ戻る</button>
+          <a class="modal-secondary-btn x-share" id="res-share-x" target="_blank" rel="noopener noreferrer">Xにシェア</a>
+          <button type="button" class="modal-secondary-btn" id="res-title-btn">ホーム</button>
+          <a class="modal-secondary-btn" id="res-ranking" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=medjedshin_ha_mamotteru" target="_blank" rel="noopener noreferrer">ランキング</a>
         </div>
       </div>
     </div>
@@ -791,8 +862,8 @@
             this.masterGain = this.ctx.createGain();
             this.bgmGain = this.ctx.createGain();
             this.seGain = this.ctx.createGain();
-            this.bgmGain.gain.value = this.bgmVol;
-            this.seGain.gain.value = this.seVol;
+            this.bgmGain.gain.value = this.muted ? 0 : this.bgmVol;
+            this.seGain.gain.value = this.muted ? 0 : this.seVol;
             this.bgmGain.connect(this.masterGain);
             this.seGain.connect(this.masterGain);
             this.masterGain.connect(comp);
@@ -1049,18 +1120,18 @@
 
       class InputManager {
         constructor(canvas, onFirstGesture) {
+          this.canvas = canvas;
           this.moveDir = { x: 0, z: 0 }; this.moveMagnitude = 0;
-          this.keysDown = new Set(); this.activePointerIds = new Set();
+          this.activePointerIds = new Set();
+          this.mouse = null;
+          this.pointerNdc = new THREE.Vector2();
+          this.pointerGround = new THREE.Vector3();
+          this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0));
+          this.ray = new THREE.Raycaster();
           this.joyBaseEl = document.getElementById('joystick-base');
           this.joyKnobEl = document.getElementById('joystick-knob');
           this.activePointerId = null; this.originX = 0; this.originY = 0; this.joyVecX = 0; this.joyVecZ = 0;
 
-          window.addEventListener('keydown', (e) => {
-            onFirstGesture();
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
-            this.keysDown.add(e.code);
-          });
-          window.addEventListener('keyup', (e) => this.keysDown.delete(e.code));
           window.addEventListener('blur', () => this.resetAll());
           window.addEventListener('pointerdown', (e) => this.activePointerIds.add(e.pointerId));
           const rmPtr = (e) => { this.activePointerIds.delete(e.pointerId); if (this.activePointerId === e.pointerId) this.releaseJoystick(); };
@@ -1068,12 +1139,16 @@
 
           canvas.addEventListener('pointerdown', (e) => {
             onFirstGesture();
-            if (this.activePointerId !== null || (e.pointerType === 'mouse' && e.button !== 0)) return;
+            if (e.pointerType === 'mouse' || this.activePointerId !== null) return;
             this.activePointerId = e.pointerId; this.originX = e.clientX; this.originY = e.clientY;
             this.joyVecX = 0; this.joyVecZ = 0;
             this.joyBaseEl.style.left = `${this.originX}px`; this.joyBaseEl.style.top = `${this.originY}px`;
             this.joyKnobEl.style.transform = 'translate3d(0,0,0)'; this.joyBaseEl.classList.add('active');
           });
+          canvas.addEventListener('pointermove', (e) => {
+            if (e.pointerType === 'mouse') this.mouse = { x: e.clientX, y: e.clientY };
+          });
+          canvas.addEventListener('pointerleave', () => { this.mouse = null; });
           window.addEventListener('pointermove', (e) => {
             if (this.activePointerId !== e.pointerId) return;
             const dx = e.clientX - this.originX, dy = e.clientY - this.originY, dist = Math.hypot(dx, dy);
@@ -1083,21 +1158,31 @@
             this.joyKnobEl.style.transform = `translate3d(${(nx * cl).toFixed(1)}px,${(ny * cl).toFixed(1)}px,0)`;
           });
         }
-        update() {
-          let kx = 0, kz = 0;
-          if (this.keysDown.has('KeyA') || this.keysDown.has('ArrowLeft')) kx -= 1;
-          if (this.keysDown.has('KeyD') || this.keysDown.has('ArrowRight')) kx += 1;
-          if (this.keysDown.has('KeyW') || this.keysDown.has('ArrowUp')) kz -= 1;
-          if (this.keysDown.has('KeyS') || this.keysDown.has('ArrowDown')) kz += 1;
-          if (kx !== 0 || kz !== 0) { const l = Math.hypot(kx, kz); this.moveDir.x = kx / l; this.moveDir.z = kz / l; this.moveMagnitude = 1.0; return; }
+        update(camera, playerPosition) {
+          this.moveDir.x = 0; this.moveDir.z = 0; this.moveMagnitude = 0;
           if (this.activePointerId !== null) {
             const l = Math.hypot(this.joyVecX, this.joyVecZ);
-            if (l > 0.001) { this.moveDir.x = this.joyVecX / l; this.moveDir.z = this.joyVecZ / l; this.moveMagnitude = Math.min(1, l); return; }
+            if (l > 0.001) { this.moveDir.x = this.joyVecX / l; this.moveDir.z = this.joyVecZ / l; this.moveMagnitude = Math.min(1, l); }
+            return;
           }
-          this.moveDir.x = 0; this.moveDir.z = 0; this.moveMagnitude = 0;
+          if (!this.mouse) return;
+          const bounds = this.canvas.getBoundingClientRect();
+          this.pointerNdc.set(
+            (this.mouse.x - bounds.left) / bounds.width * 2 - 1,
+            1 - (this.mouse.y - bounds.top) / bounds.height * 2,
+          );
+          this.ray.setFromCamera(this.pointerNdc, camera);
+          const ground = this.ray.ray.intersectPlane(this.groundPlane, this.pointerGround);
+          const aim = ground || this.ray.ray.at(camera.far, this.pointerGround);
+          const dx = THREE.MathUtils.clamp(aim.x, FIELD.minX + 0.55, FIELD.maxX - 0.55) - playerPosition.x;
+          const dz = THREE.MathUtils.clamp(aim.z, FIELD.minZ + 0.55, FIELD.maxZ - 0.55) - playerPosition.z;
+          const distance = Math.hypot(dx, dz);
+          if (distance < 0.18) return;
+          this.moveDir.x = dx / distance; this.moveDir.z = dz / distance;
+          this.moveMagnitude = Math.min(1, distance / 1.2);
         }
         releaseJoystick() { this.activePointerId = null; this.joyVecX = 0; this.joyVecZ = 0; this.joyBaseEl.classList.remove('active'); }
-        resetAll() { this.keysDown.clear(); this.releaseJoystick(); this.moveDir.x = 0; this.moveDir.z = 0; this.moveMagnitude = 0; }
+        resetAll() { this.mouse = null; this.releaseJoystick(); this.moveDir.x = 0; this.moveDir.z = 0; this.moveMagnitude = 0; }
       }
 
       // ============================================================
@@ -3084,6 +3169,52 @@
 
         const shareLink = document.getElementById('btn-share-x');
         const publicUrl = document.querySelector('link[rel="canonical"]').href;
+        const gameName = document.title;
+        const makeShareLink = (...lines) => {
+          const intent = new URL('https://twitter.com/intent/tweet');
+          intent.searchParams.set('text', [...lines, `#${gameName}`, publicUrl].join('\n'));
+          return intent.href;
+        };
+        shareLink.href = makeShareLink(gameName, '冥界で死者たちの行進を守れ！40ウェーブの3Dアクション。');
+        const resultShare = document.getElementById('res-share-x');
+        const nameInput = document.getElementById('player-name');
+        const ranking = window.MedjedRanking;
+        const rankingStatus = document.getElementById('result-ranking-status');
+        const rankingRetry = document.getElementById('result-ranking-retry');
+        let rankingRun = null;
+        let confirmedPlayCount = 0;
+        const refreshPlayCount = async () => {
+          try {
+            const count = await ranking.playCount();
+            confirmedPlayCount = Math.max(confirmedPlayCount, count);
+            document.getElementById('rec-plays').textContent = confirmedPlayCount.toLocaleString();
+            document.getElementById('rec-plays-row').hidden = false;
+          } catch {}
+        };
+        if (ranking) {
+          nameInput.value = ranking.savedName();
+          refreshPlayCount();
+          ranking.flush().then(refreshPlayCount);
+          window.addEventListener('online', () => {
+            ranking.flush().then(refreshPlayCount);
+            if (gameState === 'RESULT' && rankingRun?.result && !rankingRetry.hidden) sendRankingResult(rankingRun);
+          });
+        }
+        const sendRankingResult = async (run) => {
+          rankingStatus.textContent = 'ランキングに送信中…';
+          rankingRetry.hidden = true;
+          try {
+            await ranking.send(run);
+            if (rankingRun === run && gameState === 'RESULT') rankingStatus.textContent = 'ランキングに記録しました。';
+          } catch (error) {
+            if (rankingRun !== run || gameState !== 'RESULT') return;
+            rankingStatus.textContent = error.retryable ? 'ランキングに送信できませんでした。' : '今回のスコアは登録できませんでした。';
+            rankingRetry.hidden = !error.retryable;
+          }
+        };
+        rankingRetry.addEventListener('click', () => {
+          if (gameState === 'RESULT' && rankingRun?.result) sendRankingResult(rankingRun);
+        });
         const loadRecords = () => {
           try {
             const raw = localStorage.getItem('medjed_3d_records_v1');
@@ -3096,14 +3227,6 @@
           document.getElementById('rec-score').textContent = r.highScore.toLocaleString();
           document.getElementById('rec-wave').textContent = `${r.bestWave} / 40`;
           document.getElementById('rec-rank').textContent = r.bestRank;
-          const shareText = r.highScore > 0
-            ? `「メジェド神は守ってる」をプレイ！ハイスコア ${r.highScore.toLocaleString()} / 最高Wave ${r.bestWave}/40（ランク${r.bestRank}）`
-            : '「メジェド神は守ってる」で死者たちの行進を守り抜け！';
-          const intent = new URL('https://twitter.com/intent/tweet');
-          intent.searchParams.set('text', shareText);
-          intent.searchParams.set('url', publicUrl);
-          intent.searchParams.set('hashtags', 'メジェド神は守ってる');
-          shareLink.href = intent.href;
         };
         renderTitleRecords();
         document.addEventListener('visibilitychange', () => {
@@ -3313,6 +3436,13 @@
           document.getElementById('res-sub').textContent = cleared ? '大蛇アペプを打ち倒し、死者たちをオシリスの館へ導いた！' : `WAVE ${currentWave} で力尽きた`;
           document.getElementById('res-rank').textContent = rank;
           document.getElementById('res-score').innerHTML = `${finalScore.toLocaleString()}${isNewRec ? '<span class="new-rec">NEW RECORD!</span>' : ''}`;
+          resultShare.href = makeShareLink(`スコア ${finalScore.toLocaleString()}点`, `到達ウェーブ ${currentWave} / 40`);
+          rankingStatus.textContent = '';
+          rankingRetry.hidden = true;
+          if (rankingRun?.name) {
+            ranking.finish(rankingRun, finalScore, currentWave, cleared);
+            sendRankingResult(rankingRun);
+          }
           document.getElementById('res-grid').innerHTML = `
             <div class="result-cell"><span>到達ウェーブ</span><strong>${currentWave} / 40</strong></div>
             <div class="result-cell"><span>最終レベル</span><strong>Lv.${playerLv}</strong></div>
@@ -3474,6 +3604,14 @@
         };
 
         const startNewRun = () => {
+          if (gameState !== 'TITLE' && gameState !== 'RESULT' && gameState !== 'PAUSED') return;
+          const name = nameInput.value.trim();
+          if (ranking && !ranking.validName(name)) {
+            nameInput.setCustomValidity('名前は20文字以内で入力してください。表示できない記号は使えません。');
+            nameInput.reportValidity();
+            return;
+          }
+          nameInput.blur();
           runToken++;
           if (chestIntervalId) { clearInterval(chestIntervalId); chestIntervalId = 0; }
           bossIntroBanner.classList.remove('visible');
@@ -3494,6 +3632,8 @@
           renderSkillStrip(); updateExpHud();
           gameState = 'PLAYING';
           startWave(1);
+          rankingRun = ranking?.start(name) ?? null;
+          if (rankingRun) ranking.send(rankingRun).then(refreshPlayCount).catch(() => {});
         };
 
         const backToTitle = () => {
@@ -3519,6 +3659,7 @@
         // ボタン結線
         const playButton = document.getElementById('btn-play');
         playButton.addEventListener('click', startNewRun);
+        nameInput.addEventListener('input', () => nameInput.setCustomValidity(''));
         document.getElementById('res-retry-btn').addEventListener('click', startNewRun);
         document.getElementById('res-title-btn').addEventListener('click', backToTitle);
         const howtoModal = document.getElementById('howto-modal');
@@ -3530,20 +3671,66 @@
         document.getElementById('howto-close-btn').addEventListener('click', () => {
           howtoModal.classList.remove('visible');
         });
-        shareLink.addEventListener('click', () => audio.unlock());
-        document.getElementById('btn-mute').addEventListener('click', (e) => {
+        const settingsButton = document.getElementById('btn-settings');
+        const settingsModal = document.getElementById('home-settings');
+        const muteButton = document.getElementById('btn-mute');
+        const muteCheckbox = document.getElementById('home-mute');
+        const bgmSliders = ['vol-bgm', 'home-vol-bgm'].map(id => document.getElementById(id));
+        const seSliders = ['vol-se', 'home-vol-se'].map(id => document.getElementById(id));
+        const audioStorageKey = 'medjed_3d_audio_v1';
+        const syncAudioControls = () => {
+          bgmSliders.forEach(slider => { slider.value = audio.bgmVol; });
+          seSliders.forEach(slider => { slider.value = audio.seVol; });
+          muteCheckbox.checked = audio.muted;
+          muteButton.textContent = audio.muted ? '音OFF' : '音ON';
+          muteButton.classList.toggle('muted', audio.muted);
+          muteButton.setAttribute('aria-pressed', String(audio.muted));
+        };
+        try {
+          const saved = JSON.parse(localStorage.getItem(audioStorageKey));
+          const volume = (value, fallback) => Number.isFinite(value) && value >= 0 && value <= 1 ? value : fallback;
+          if (saved) {
+            audio.muted = saved.muted === true;
+            audio.setVolumes(volume(saved.bgm, audio.bgmVol), volume(saved.se, audio.seVol));
+          }
+        } catch {}
+        const saveAudio = () => {
+          syncAudioControls();
+          try { localStorage.setItem(audioStorageKey, JSON.stringify({ muted: audio.muted, bgm: audio.bgmVol, se: audio.seVol })); } catch {}
+        };
+        syncAudioControls();
+        settingsButton.addEventListener('click', () => {
           audio.unlock();
-          const m = audio.toggleMute();
-          e.currentTarget.textContent = m ? '音OFF' : '音ON';
-          e.currentTarget.classList.toggle('muted', m);
+          settingsModal.showModal();
         });
-        document.getElementById('btn-pause').addEventListener('click', () => {
-          if (gameState !== 'PLAYING') return;
+        const toggleAudio = () => { audio.unlock(); audio.toggleMute(); saveAudio(); };
+        muteButton.addEventListener('click', toggleAudio);
+        muteCheckbox.addEventListener('change', toggleAudio);
+        bgmSliders.forEach(slider => slider.addEventListener('input', () => {
+          audio.setVolumes(Number(slider.value), audio.seVol);
+          saveAudio();
+        }));
+        seSliders.forEach(slider => slider.addEventListener('input', () => {
+          audio.setVolumes(audio.bgmVol, Number(slider.value));
+          saveAudio();
+        }));
+        let pausedState = 'PLAYING';
+        const resumeGame = () => {
+          if (gameState !== 'PAUSED') return;
+          input.resetAll();
+          pauseModal.classList.remove('visible');
+          gameState = pausedState;
+        };
+        const togglePause = () => {
+          if (gameState === 'PAUSED') { resumeGame(); return; }
+          if (gameState !== 'PLAYING' && gameState !== 'BOSS_INTRO') return;
+          pausedState = gameState;
           gameState = 'PAUSED'; input.resetAll();
           pauseBody.textContent = `WAVE ${currentWave}/40 | Lv.${playerLv} | 生還: ${souls.rescuedCount} | 被害: ${souls.casualtyCount}/30`;
           pauseModal.classList.add('visible');
-        });
-        document.getElementById('pause-resume-btn').addEventListener('click', () => { pauseModal.classList.remove('visible'); gameState = 'PLAYING'; });
+        };
+        document.getElementById('btn-pause').addEventListener('click', togglePause);
+        document.getElementById('pause-resume-btn').addEventListener('click', resumeGame);
         document.getElementById('pause-restart-btn').addEventListener('click', startNewRun);
         document.getElementById('pause-title-btn').addEventListener('click', backToTitle);
         chestCloseBtn.addEventListener('click', () => {
@@ -3551,10 +3738,8 @@
           if (pendingLevelUps > 0) { pendingLevelUps--; openLevelUpModal(); }
           else gameState = 'PLAYING';
         });
-        document.getElementById('vol-bgm').addEventListener('input', (e) => audio.setVolumes(parseFloat(e.target.value), audio.seVol));
-        document.getElementById('vol-se').addEventListener('input', (e) => audio.setVolumes(audio.bgmVol, parseFloat(e.target.value)));
-
         window.addEventListener('keydown', (e) => {
+          if (e.repeat || e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.target.matches?.('input, textarea, [contenteditable]')) return;
           if (gameState === 'LEVEL_UP') {
             if (performance.now() - levelUpOpenedAt < 350) return;
             if (e.code === 'Digit1') selectSkillChoice(0);
@@ -3562,10 +3747,7 @@
             if (e.code === 'Digit3') selectSkillChoice(2);
             return;
           }
-          if (e.code === 'Escape' || e.code === 'KeyP') {
-            if (gameState === 'PLAYING') { gameState = 'PAUSED'; input.resetAll(); pauseModal.classList.add('visible'); }
-            else if (gameState === 'PAUSED') { pauseModal.classList.remove('visible'); gameState = 'PLAYING'; }
-          }
+          if (e.code === 'KeyS' || e.code === 'Escape') togglePause();
         });
 
         const pickEnemyType = (mix) => {
@@ -3599,7 +3781,7 @@
             if (slowMoTimer > 0) { slowMoTimer = Math.max(0, slowMoTimer - dt); dt *= 0.35; }
             if (hitStopTimer > 0) { hitStopTimer = Math.max(0, hitStopTimer - dt); sceneManager.update(dt, player.position, false); }
             else {
-              input.update();
+              input.update(sceneManager.camera, player.position);
               player.update(dt, input.moveDir.x, input.moveDir.z, input.moveMagnitude);
 
               waveElapsed += dt;
@@ -3679,6 +3861,7 @@
 
         playButton.disabled = false;
         howtoButton.disabled = false;
+        settingsButton.disabled = false;
         requestAnimationFrame(tick);
       });
     })();

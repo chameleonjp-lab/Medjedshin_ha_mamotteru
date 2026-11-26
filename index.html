@@ -242,11 +242,13 @@
     }
     .skill-slot.awakened .skill-slot-lv { background: #ffd700; color: #141210; }
 
+    .hud-status { position: relative; }
     .banner-toast {
-      position: fixed; left: 50%; top: 72px; transform: translateX(-50%) translateY(-10px);
+      position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%) translateY(-6px);
       background: rgba(14, 18, 34, 0.94); border: 1.5px solid #ffd700; color: #ffd700;
       font-size: 12px; font-weight: 800; padding: 6px 16px; border-radius: 999px;
-      opacity: 0; pointer-events: none; transition: opacity 0.22s, transform 0.22s; z-index: 25; max-width: calc(100vw - 20px); width: max-content; text-align: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.22s, transform 0.22s;
+      max-width: 100%; width: max-content; overflow-wrap: anywhere; text-align: center;
     }
     .banner-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -446,7 +448,6 @@
     <div id="danger-vignette"></div>
     <div id="hit-flash"></div>
     <div id="defeat-fade"></div>
-    <div class="banner-toast" id="banner-toast"></div>
 
     <!-- タイトル画面 -->
     <div id="title-screen">
@@ -526,7 +527,7 @@
       </div>
 
       <div class="hud-inner">
-        <div>
+        <div class="hud-status">
           <div class="hud-top-bar">
             <div class="hud-panel hud-left">
               <div class="hud-wave-row">
@@ -557,6 +558,7 @@
             </div>
             <div class="boss-hp-track"><div class="boss-hp-fill" id="boss-hp-fill"></div></div>
           </div>
+          <div class="banner-toast" id="banner-toast"></div>
         </div>
 
         <div class="skill-strip" id="skill-strip"></div>
@@ -1208,7 +1210,6 @@
         constructor(canvas, onFirstGesture) {
           this.canvas = canvas;
           this.moveDir = { x: 0, z: 0 }; this.moveMagnitude = 0;
-          this.activePointerIds = new Set();
           this.mouse = null;
           this.pointerNdc = new THREE.Vector2();
           this.pointerGround = new THREE.Vector3();
@@ -1219,8 +1220,7 @@
           this.activePointerId = null; this.originX = 0; this.originY = 0; this.joyVecX = 0; this.joyVecZ = 0;
 
           window.addEventListener('blur', () => this.resetAll());
-          window.addEventListener('pointerdown', (e) => this.activePointerIds.add(e.pointerId));
-          const rmPtr = (e) => { this.activePointerIds.delete(e.pointerId); if (this.activePointerId === e.pointerId) this.releaseJoystick(); };
+          const rmPtr = (e) => { if (this.activePointerId === e.pointerId) this.releaseJoystick(); };
           window.addEventListener('pointerup', rmPtr); window.addEventListener('pointercancel', rmPtr);
 
           canvas.addEventListener('pointerdown', (e) => {
@@ -1289,38 +1289,42 @@
       }
 
       const graphicsScripts = new Map();
-      function loadGraphicsScript(src) {
-        if (!graphicsScripts.has(src)) {
-          const promise = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            const finish = (error) => {
-              clearTimeout(timer);
-              script.onload = script.onerror = null;
-              if (error) {
-                graphicsScripts.delete(src);
-                script.remove();
-                reject(error);
-              } else resolve();
-            };
-            const timer = setTimeout(() => finish(new Error('3D model download timed out')), 8000);
-            script.onload = () => finish();
-            script.onerror = () => finish(new Error('3D model script unavailable'));
-            script.src = src;
-            document.head.append(script);
-          });
-          graphicsScripts.set(src, promise);
-        }
-        return graphicsScripts.get(src);
+      function loadGraphicsScript(src, globalName) {
+        const cached = graphicsScripts.get(src);
+        if (cached) return cached;
+
+        const url = new URL(src, document.baseURI);
+        // A failed response may still be cached by the browser.
+        if (graphicsScripts.has(src)) url.searchParams.set('retry', Date.now());
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          const finish = (error) => {
+            clearTimeout(timer);
+            script.onload = script.onerror = null;
+            if (error) {
+              graphicsScripts.set(src, null);
+              script.remove();
+              reject(error);
+            } else resolve();
+          };
+          const timer = setTimeout(() => finish(new Error('3D model download timed out')), 8000);
+          script.onload = () => {
+            if (window[globalName]) finish();
+            else finish(new Error('3D model script did not initialize'));
+          };
+          script.onerror = () => finish(new Error('3D model script unavailable'));
+          script.src = url.href;
+          document.head.append(script);
+        });
+        graphicsScripts.set(src, promise);
+        return promise;
       }
       async function loadDetailedGraphics() {
         try {
           await Promise.all([
-            loadGraphicsScript('./assets/pc_models_library.js?v=2'),
-            loadGraphicsScript('./assets/pc-graphics.js?v=2'),
+            loadGraphicsScript('./assets/pc_models_library.js?v=2', 'MedjedPCModels'),
+            loadGraphicsScript('./assets/pc-graphics.js?v=2', 'MedjedHighGraphics'),
           ]);
-          if (!window.MedjedHighGraphics || !window.MedjedPCModels) {
-            throw new Error('3D model initialization unavailable');
-          }
           return window.MedjedPCModels;
         } catch (error) {
           console.warn('軽量モデルで表示します。', error);
@@ -1917,6 +1921,7 @@
         takeDamage(rawDmg, skillId, isAwaken, isAnubis, anubisLv) {
           if (!this.active) return false;
           let dmg = rawDmg;
+          let stunDuration = 0;
           if (isAnubis) {
             dmg *= SKILLS_DATA.anubis_scales.bossMult[anubisLv - 1];
             if (anubisLv === 10) dmg += Math.round(this.hp * 0.05);
@@ -1932,7 +1937,7 @@
                 if (targetCore.hp <= 0) {
                   targetCore.alive = false;
                   targetCore.mesh.visible = false;
-                  this.state = 'stunned'; this.timer = 1.2;
+                  stunDuration = 1.2;
                   this.sceneManager.addShake(0.5);
                   this.dmgText.spawn(this.x, this.z, t('coreDestroyed'), 'awaken');
                 }
@@ -1955,16 +1960,19 @@
           if (this.isChargingCancelable) {
             this.chargeDmgAccum += dmg;
             if (this.chargeDmgAccum >= this.cancelThreshold) {
-              this.isChargingCancelable = false;
-              this.state = 'stunned'; this.timer = 2.1;
-              this.telegraphMesh.visible = false;
-              this.warnCircle.visible = false;
-              this.sphinxLaser.visible = false;
-              this.sceneManager.setSandstorm(false);
+              stunDuration = 2.1;
               this.dmgText.spawn(this.x, this.z, t('interrupted'), 'reflect');
               this.audio.playReflect();
               this.sceneManager.addShake(0.4);
             }
+          }
+          if (stunDuration > 0) {
+            this.state = 'stunned'; this.timer = stunDuration;
+            this.isChargingCancelable = false;
+            this.telegraphMesh.visible = false;
+            this.warnCircle.visible = false;
+            this.sphinxLaser.visible = false;
+            this.sceneManager.setSandstorm(false);
           }
 
           const finalDmg = Math.max(1, Math.round(dmg));
@@ -3685,7 +3693,8 @@
         let bossRewardTimer = 0, victoryTimer = 0, pendingChests = 0, defeatTimer = 0, hitFlashLevel = 0;
         let currentWave = 1, waveElapsed = 0, waveSpawnedCount = 0, waveElitesSpawned = 0, waveSpawnTimer = 0.4;
         let playerLv = 1, currentExp = 0, nextExp = nextExpForLevel(1), pendingLevelUps = 0, bossBonusPts = 0;
-        let levelUpOpenedAt = 0, preModalPtrs = new Set(), validModalPtrs = new Set(), currentChoices = [];
+        let levelUpOpenedAt = 0, currentChoices = [];
+        const skillChoiceDelay = 350;
 
         const showBanner = (msg) => { bannerToast.textContent = msg; bannerToast.classList.add('show'); toastTimer = 2.6; };
         // メジェドが受けたダメージは、原因にかかわらずここで数字にする。大きいほど目立たせる
@@ -3747,11 +3756,16 @@
         rankingRetry.addEventListener('click', () => {
           if (gameState === 'RESULT' && rankingRun?.result) sendRankingResult(rankingRun);
         });
+        const rankOrder = { S: 4, A: 3, B: 2, C: 1, '-': 0 };
         const loadRecords = () => {
+          const records = { highScore: 0, bestWave: 0, bestRank: '-' };
           try {
-            const raw = localStorage.getItem('medjed_3d_records_v1');
-            return raw ? JSON.parse(raw) : { highScore: 0, bestWave: 0, bestRank: '-' };
-          } catch { return { highScore: 0, bestWave: 0, bestRank: '-' }; }
+            const saved = JSON.parse(localStorage.getItem('medjed_3d_records_v1'));
+            if (Number.isSafeInteger(saved?.highScore) && saved.highScore >= 0) records.highScore = saved.highScore;
+            if (Number.isInteger(saved?.bestWave) && saved.bestWave >= 0 && saved.bestWave <= 40) records.bestWave = saved.bestWave;
+            if (typeof saved?.bestRank === 'string' && Object.hasOwn(rankOrder, saved.bestRank)) records.bestRank = saved.bestRank;
+          } catch {}
+          return records;
         };
         const saveRecords = (rec) => { try { localStorage.setItem('medjed_3d_records_v1', JSON.stringify(rec)); } catch {} };
         document.addEventListener('medjedlanguagechange', () => {
@@ -3980,7 +3994,6 @@
           const rank = !cleared ? 'C' : cas <= 5 ? 'S' : cas <= 12 ? 'A' : 'B';
 
           const prev = loadRecords();
-          const rankOrder = { S: 4, A: 3, B: 2, C: 1, '-': 0 };
           const isNewRec = finalScore > prev.highScore;
           saveRecords({
             highScore: Math.max(prev.highScore, finalScore),
@@ -4035,8 +4048,6 @@
           gameState = 'LEVEL_UP';
           levelUpOpenedAt = performance.now();
           const token = runToken, openedAt = levelUpOpenedAt;
-          preModalPtrs = new Set(input.activePointerIds);
-          validModalPtrs = new Set();
           input.resetAll();
 
           currentChoices = skills.rollChoices();
@@ -4059,8 +4070,13 @@
                 : `<span class="lu-badge up">${level(choice.fromLv)} → ${level(choice.toLv)}</span>`;
               card.innerHTML = `<span class="lu-key-hint">${idx+1}</span><div class="lu-card-top"><div class="lu-icon">${s.icon}</div><div class="lu-name-wrap">${badge}<div class="lu-name">${skillName(choice.id, isAw)}</div></div></div><div class="lu-desc">${t(`${choice.id}.${isAw ? 'awakenDesc' : 'desc'}`)}</div><div class="lu-diff">${skillStats(choice.id, choice.fromLv, choice.toLv)}</div>`;
             }
-            card.addEventListener('pointerdown', (e) => { if (performance.now() - levelUpOpenedAt >= 350 && !preModalPtrs.has(e.pointerId)) validModalPtrs.add(e.pointerId); });
-            card.addEventListener('pointerup', (e) => { if (performance.now() - levelUpOpenedAt >= 350 && !preModalPtrs.has(e.pointerId) && validModalPtrs.has(e.pointerId)) selectSkillChoice(idx); });
+            let pointerReady = false;
+            card.addEventListener('pointerdown', () => { pointerReady = performance.now() - openedAt >= skillChoiceDelay; });
+            card.addEventListener('pointercancel', () => { pointerReady = false; });
+            card.addEventListener('click', (e) => {
+              if (performance.now() - openedAt >= skillChoiceDelay && (e.detail === 0 || pointerReady)) selectSkillChoice(idx);
+              pointerReady = false;
+            });
             luCards.appendChild(card);
           });
           luModal.classList.add('visible');
@@ -4069,7 +4085,7 @@
             if (token === runToken && gameState === 'LEVEL_UP' && levelUpOpenedAt === openedAt) {
               luCards.querySelectorAll('.lu-card').forEach((el) => el.classList.remove('guard-locked'));
             }
-          }, 350);
+          }, skillChoiceDelay);
         };
 
         const selectSkillChoice = (idx) => {
@@ -4395,7 +4411,7 @@
         window.addEventListener('keydown', (e) => {
           if (e.repeat || e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.target.matches?.('input, textarea, [contenteditable]')) return;
           if (gameState === 'LEVEL_UP') {
-            if (performance.now() - levelUpOpenedAt < 350) return;
+            if (performance.now() - levelUpOpenedAt < skillChoiceDelay) return;
             if (e.code === 'Digit1') selectSkillChoice(0);
             if (e.code === 'Digit2') selectSkillChoice(1);
             if (e.code === 'Digit3') selectSkillChoice(2);

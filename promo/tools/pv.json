@@ -1,50 +1,51 @@
 {
   "segments": [
-    { "clip": "hook", "from": 20, "dur": 2.0 },
-    { "clip": "title", "from": 0, "dur": 1.4, "zoom": [1.5, 1.75], "origin": "40% 55%" },
+    { "clip": "hook", "from": 20, "dur": 3.2 },
+    { "clip": "title", "from": 0, "dur": 3.0, "zoom": [1.45, 1.8], "origin": "40% 55%" },
+    { "clip": "early", "from": 95, "dur": 1.4 },
     { "clip": "levelup", "from": 76, "dur": 1.6 },
-    { "clip": "awaken", "from": 40, "dur": 1.4 },
-    { "clip": "horde", "from": 30, "dur": 2.0 },
-    { "clip": "boss_ammit", "from": 4, "dur": 0.6 },
-    { "clip": "boss_set", "from": 4, "dur": 0.6 },
-    { "clip": "boss_sphinx", "from": 4, "dur": 0.6 },
-    { "clip": "victory", "from": 20, "dur": 1.2 },
-    { "clip": "victory", "from": 142, "dur": 0.8 },
-    { "clip": "title", "from": 30, "dur": 2.8, "zoom": [1.0, 1.12], "origin": "46% 50%" }
+    { "clip": "awaken", "from": 25, "dur": 3.0 },
+    { "clip": "horde", "from": 20, "dur": 3.0 },
+    { "clip": "boss_ammit", "from": 4, "dur": 0.97 },
+    { "clip": "boss_set", "from": 4, "dur": 0.97 },
+    { "clip": "boss_sphinx", "from": 4, "dur": 0.96 },
+    { "clip": "victory", "from": 10, "dur": 1.6 },
+    { "clip": "victory", "from": 140, "dur": 1.2 },
+    { "clip": "title", "from": 30, "dur": 4.1, "zoom": [1.0, 1.15], "origin": "46% 50%" }
   ],
   "captions": [
-    { "start": 0.1, "end": 1.0, "pos": "center", "size": 110, "anim": "slam", "html": "この白い神さま、" },
-    { "start": 0.95, "end": 2.0, "pos": "center", "size": 160, "anim": "slam", "html": "<em>強すぎる。</em>" },
-    { "start": 2.0, "end": 3.4, "html": "<span class='s'>冥界で、死者たちの行進を守る</span>メジェド神" },
-    { "start": 3.4, "end": 5.0, "html": "<span class='s'>指でなぞって動くだけ</span>攻撃は<em>ぜんぶ自動</em>！" },
-    { "start": 5.0, "end": 6.4, "html": "<span class='s'>8種のスキルを育てきると</span><em>神格覚醒</em>！" },
-    { "start": 6.4, "end": 8.4, "html": "<span class='s'>押し寄せる大群を</span>まとめて<em>一掃</em>！" },
-    { "start": 8.4, "end": 10.2, "size": 96, "html": "<span class='s'>立ちはだかる</span><em>4柱</em>のボス" },
-    { "start": 10.2, "end": 12.2, "html": "<span class='s'>最終40ウェーブまで</span><em>守りぬけ！</em>" }
+    { "start": 0.1, "end": 1.7, "pos": "center", "size": 110, "anim": "slam", "html": "この白い神さま、" },
+    { "start": 1.6, "end": 3.2, "pos": "center", "size": 160, "anim": "slam", "html": "<em>強すぎる。</em>" },
+    { "start": 3.2, "end": 6.2, "html": "<span class='s'>冥界で、死者たちの行進を守る</span>メジェド神" },
+    { "start": 6.2, "end": 9.2, "html": "<span class='s'>指でなぞって動くだけ</span>攻撃は<em>ぜんぶ自動</em>！" },
+    { "start": 9.2, "end": 12.2, "html": "<span class='s'>8種のスキルを育てきると</span><em>神格覚醒</em>！" },
+    { "start": 12.2, "end": 15.2, "html": "<span class='s'>押し寄せる大群を</span>まとめて<em>一掃</em>！" },
+    { "start": 15.2, "end": 18.1, "size": 96, "html": "<span class='s'>立ちはだかる</span><em>4柱</em>のボス" },
+    { "start": 18.1, "end": 20.9, "html": "<span class='s'>最終40ウェーブまで</span><em>守りぬけ！</em>" }
   ],
-  "flashes": [0, 2.0, 5.67, 6.4, 8.4, 9.0, 9.6, 10.2, 11.4],
+  "flashes": [0, 3.2, 6.2, 10.37, 12.2, 15.2, 16.17, 17.14, 18.1, 19.7],
   "shakes": [
-    { "t": 0.1, "d": 0.3, "a": 10 }, { "t": 0.95, "d": 0.4, "a": 16 },
-    { "t": 5.67, "d": 0.5, "a": 18 }, { "t": 8.4, "d": 0.3, "a": 12 }, { "t": 9.0, "d": 0.3, "a": 12 },
-    { "t": 9.6, "d": 0.3, "a": 12 }, { "t": 11.4, "d": 0.4, "a": 14 }
+    { "t": 0.1, "d": 0.3, "a": 10 }, { "t": 1.6, "d": 0.4, "a": 16 },
+    { "t": 10.37, "d": 0.5, "a": 18 }, { "t": 15.2, "d": 0.3, "a": 12 }, { "t": 16.17, "d": 0.3, "a": 12 },
+    { "t": 17.14, "d": 0.3, "a": 12 }, { "t": 19.7, "d": 0.4, "a": 14 }
   ],
   "logoAt": 0,
-  "endAt": 12.2,
+  "endAt": 20.9,
   "audio": {
-    "duration": 15.3,
+    "duration": 25.3,
     "events": [
       { "t": 0, "mode": "boss", "resetStep": true, "battle": 2.5 },
-      { "t": 2.0, "mode": "title", "resetStep": true, "battle": 0 },
-      { "t": 3.4, "mode": "p1", "resetStep": true, "battle": 1.2 },
-      { "t": 5.0, "se": "playLevelUp", "battle": 0 },
-      { "t": 5.67, "se": "playAwaken", "mode": "p4", "resetStep": true, "battle": 2.5 },
-      { "t": 8.4, "mode": "boss", "resetStep": true, "se": "playBossWarn", "battle": 0 },
-      { "t": 9.0, "se": "playBossWarn" },
-      { "t": 9.6, "se": "playBossWarn" },
-      { "t": 10.2, "battle": 2.5 },
-      { "t": 11.4, "se": "playBossDefeat", "mode": "result", "resetStep": true, "battle": 0 },
-      { "t": 12.2, "mode": "title", "resetStep": true },
-      { "t": 14.6, "bgm": false }
+      { "t": 3.2, "mode": "title", "resetStep": true, "battle": 0 },
+      { "t": 6.2, "mode": "p1", "resetStep": true, "battle": 1.2 },
+      { "t": 9.2, "se": "playLevelUp", "battle": 0 },
+      { "t": 10.37, "se": "playAwaken", "mode": "p4", "resetStep": true, "battle": 2.5 },
+      { "t": 15.2, "mode": "boss", "resetStep": true, "se": "playBossWarn", "battle": 0 },
+      { "t": 16.17, "se": "playBossWarn" },
+      { "t": 17.14, "se": "playBossWarn" },
+      { "t": 18.1, "battle": 2.5 },
+      { "t": 19.7, "se": "playBossDefeat", "mode": "result", "resetStep": true, "battle": 0 },
+      { "t": 20.9, "mode": "title", "resetStep": true },
+      { "t": 24.6, "bgm": false }
     ]
   }
 }

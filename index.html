@@ -3750,11 +3750,16 @@
         rankingRetry.addEventListener('click', () => {
           if (gameState === 'RESULT' && rankingRun?.result) sendRankingResult(rankingRun);
         });
+        const rankOrder = { S: 4, A: 3, B: 2, C: 1, '-': 0 };
         const loadRecords = () => {
+          const records = { highScore: 0, bestWave: 0, bestRank: '-' };
           try {
-            const raw = localStorage.getItem('medjed_3d_records_v1');
-            return raw ? JSON.parse(raw) : { highScore: 0, bestWave: 0, bestRank: '-' };
-          } catch { return { highScore: 0, bestWave: 0, bestRank: '-' }; }
+            const saved = JSON.parse(localStorage.getItem('medjed_3d_records_v1'));
+            if (Number.isSafeInteger(saved?.highScore) && saved.highScore >= 0) records.highScore = saved.highScore;
+            if (Number.isInteger(saved?.bestWave) && saved.bestWave >= 0 && saved.bestWave <= 40) records.bestWave = saved.bestWave;
+            if (typeof saved?.bestRank === 'string' && Object.hasOwn(rankOrder, saved.bestRank)) records.bestRank = saved.bestRank;
+          } catch {}
+          return records;
         };
         const saveRecords = (rec) => { try { localStorage.setItem('medjed_3d_records_v1', JSON.stringify(rec)); } catch {} };
         document.addEventListener('medjedlanguagechange', () => {
@@ -3983,7 +3988,6 @@
           const rank = !cleared ? 'C' : cas <= 5 ? 'S' : cas <= 12 ? 'A' : 'B';
 
           const prev = loadRecords();
-          const rankOrder = { S: 4, A: 3, B: 2, C: 1, '-': 0 };
           const isNewRec = finalScore > prev.highScore;
           saveRecords({
             highScore: Math.max(prev.highScore, finalScore),

@@ -141,6 +141,7 @@
 
   window.MedjedRanking = {
     start, finish, send, flush, playCount, validName,
+    hasPlayed() { return uuidPattern.test(get(playerKey) || ''); },
     savedName() { const name = get(nameKey) || ''; return validName(name) ? name : ''; },
   };
 })();

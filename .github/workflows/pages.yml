@@ -32,8 +32,8 @@ jobs:
       - name: Prepare the site
         run: |
           mkdir public
-          cp index.html public/
-          cp -R vendor public/
+          cp index.html ranking-client.js public/
+          cp -R vendor assets public/
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@v4

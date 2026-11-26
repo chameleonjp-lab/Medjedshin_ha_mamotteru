@@ -20,6 +20,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      PAGES_ARTIFACT_NAME: github-pages-${{ github.run_attempt }}
     steps:
       - name: Check out the game
         uses: actions/checkout@v6
@@ -38,8 +40,30 @@ jobs:
       - name: Upload the site
         uses: actions/upload-pages-artifact@v4
         with:
+          name: ${{ env.PAGES_ARTIFACT_NAME }}
           path: public
+
+      - name: Verify the site artifact is available
+        id: artifact_ready
+        uses: actions/download-artifact@v5
+        continue-on-error: true
+        with:
+          name: ${{ env.PAGES_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/pages-artifact-check
+
+      - name: Wait for the artifact to become available
+        if: steps.artifact_ready.outcome == 'failure'
+        run: sleep 5
+
+      - name: Check the site artifact again
+        if: steps.artifact_ready.outcome == 'failure'
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.PAGES_ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/pages-artifact-check
 
       - name: Deploy the site
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ env.PAGES_ARTIFACT_NAME }}

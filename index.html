@@ -213,7 +213,7 @@
     .boss-hp-track { width: 100%; height: 12px; background: rgba(255,255,255,0.14); border-radius: 999px; overflow: hidden; }
     .boss-hp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff1e56, #b81d9a); transition: width 0.08s linear; }
 
-    .hud-right-wrap { display: flex; align-items: flex-start; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .hud-right-wrap { display: flex; align-items: flex-start; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-inline-start: auto; }
     .hud-right { display: flex; align-items: center; gap: 10px; }
     .hud-stat { display: flex; flex-direction: column; align-items: center; min-width: 42px; }
     .hud-stat-label { font-size: 9px; color: #c8c4ba; text-align: center; }
@@ -224,13 +224,16 @@
     .hud-stat-value.hp { color: #52ff8a; }
     .hud-panel.casualty-flash { border-color: #ff3b30; box-shadow: 0 0 18px rgba(255, 59, 48, 0.75); }
 
-    .hud-controls { display: flex; gap: 4px; pointer-events: auto; flex-wrap: wrap; }
+    .hud-controls { display: flex; gap: 4px; pointer-events: auto; }
     .hud-btn {
       background: rgba(14, 18, 34, 0.88); border: 1.5px solid #d4af37; color: #f4f1ea;
-      border-radius: 8px; padding: 5px 7px; font-size: 11px; font-weight: 700; cursor: pointer; min-height: 30px; white-space: nowrap;
+      border-radius: 8px; padding: 5px 7px; font-size: 11px; font-weight: 700; cursor: pointer; min-height: 36px; white-space: nowrap;
     }
     .hud-btn:hover { background: rgba(34, 42, 74, 0.95); }
     .hud-btn.muted { border-color: #7c7568; color: #a6a095; }
+    #btn-speed { min-width: 44px; font-variant-numeric: tabular-nums; }
+    .hud-btn.hud-next-wave { pointer-events: auto; color: #141210; background: #ffd700; }
+    .hud-btn.hud-next-wave:hover { background: #fff0a0; }
 
     .skill-strip { display: flex; gap: 5px; flex-wrap: wrap; }
     .skill-slot {
@@ -426,6 +429,10 @@
     #joystick-base.active { opacity: 1; }
     #joystick-knob { width: 44px; height: 44px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffd700, #d4af37); border: 2px solid #f4f1ea; }
 
+    @media (max-width: 820px) {
+      .hud-right-wrap { flex-basis: 100%; order: 1; justify-content: flex-start; margin-inline-start: 0; }
+      .hud-next-wave { margin-inline-start: auto; }
+    }
     @media (max-width: 680px) {
       .lu-cards { grid-template-columns: 1fr; max-height: 76vh; overflow-y: auto; }
       .skill-slot { width: 34px; height: 34px; font-size: 15px; }
@@ -493,7 +500,7 @@
         <div class="modal-title" data-i18n="howTo">遊び方</div>
         <div class="howto-list">
           <div><strong data-i18n="rules">基本ルール</strong><br><span data-i18n="rulesBody">画面下部の石畳を左から右へ行進する「死者たち」を、迫り来る魔物や神々から守り抜きます。Wave 40の最終ボス「大蛇アペプ」撃破でクリア！死者の被害が30人に達するか、メジェドの体力が0になると敗北です。初回プレイでは、死者の被害が40人に達すると敗北です。</span></div>
-          <div><strong data-i18n="controls">操作方法</strong><br><span data-i18n="controlsBody">パソコンでは、マウスを動かした方向へメジェドが移動します。Sキーか画面の「停止」で一時停止メニューを開けます。スマホでは、戦場に触れて指を動かすと移動できます。攻撃は自動で発動します。ホームの設定や一時停止メニューで、ゲーム速度を1倍・1.5倍・2倍から選べます。</span></div>
+          <div><strong data-i18n="controls">操作方法</strong><br><span data-i18n="controlsBody">パソコンでは、マウスを動かした方向へメジェドが移動します。Sキーか画面の「停止」で一時停止メニューを開けます。スマホでは、戦場に触れて指を動かすと移動できます。攻撃は自動で発動します。停止の隣のボタンで、速度を1倍・1.5倍・2倍に切り替えられます。通常ウェーブの敵をすべて倒すと、右上の「次のウェーブへ」で先に進めます。</span></div>
           <div><strong data-i18n="reflect">布の弾き返し（盾アクション）</strong><br><span data-i18n="reflectBody">毒サソリの毒弾やアヌビス弓兵の矢に向かって移動入力で体当たりすると、被ダメージ無効で3倍威力の反射弾を撃ち返します！</span></div>
           <div><strong data-i18n="training">スキル育成＆神格覚醒（全8種×Lv10）</strong><br><span data-i18n="trainingBody">敵撃破で落ちる経験値ジェムを集めてレベルアップ。Lv3までは自由に強化でき、Lv4は全8スキル平均Lv2.3以上（以降+1.0ごと）で段階解放されます。Lv10到達で強力な神格覚醒が発動します。</span></div>
           <div><strong data-i18n="rewards">黄金宝箱とボス撃破報酬</strong><br><span data-i18n="rewardsBody">ファラオの棺をゴールまで守り、残りHPが50以上なら、黄金宝箱を獲得します。スロットの出目に応じて、最もレベルの低いスキルが1〜3レベル上がります。ボスが大技をためている間に一定のダメージを与えると、発動を止められます。第10・20・30ウェーブのボスを倒すと、レベル上限を1段階上げるか、上限内で好きなスキルを1レベル強化できます。全スキルが最大レベルなら、強化報酬は5秒間の攻撃力+20%になります。</span></div>
@@ -550,8 +557,10 @@
               <div class="hud-controls">
                 <button type="button" class="hud-btn" id="btn-mute">音ON</button>
                 <button type="button" class="hud-btn" id="btn-pause" data-i18n="pause">停止</button>
+                <button type="button" class="hud-btn" id="btn-speed" aria-label="ゲーム速度 1倍">1倍</button>
               </div>
             </div>
+            <button type="button" class="hud-btn hud-next-wave" id="btn-next-wave" data-i18n="nextWave" hidden>次のウェーブへ</button>
           </div>
 
           <div id="boss-hud">
@@ -669,7 +678,7 @@
     </div>
   </div>
 
-  <script src="./translations.js?v=20261127-03"></script>
+  <script src="./translations.js?v=20261127-04"></script>
   <script src="./localization.js?v=20261127-01"></script>
   <script>
     (function () {
@@ -727,7 +736,7 @@
       };
 
       const COFFIN_CHEST_MIN_HP = 50;
-      const COFFIN_RANDOM_SPAWN_RATE = 0.035;
+      const COFFIN_RANDOM_SPAWN_RATE = 0.018;
       const PRIEST_RANDOM_SPAWN_RATE = 0.1503;
       const SOUL_LOSS_LIMIT = 30;
       const FIRST_RUN_SOUL_LOSS_LIMIT = 40;
@@ -3650,6 +3659,7 @@
 
         const hudLv = document.getElementById('hud-lv'), hudExpFill = document.getElementById('hud-exp-fill');
         const hudWave = document.getElementById('hud-wave'), hudPhaseName = document.getElementById('hud-phase-name'), hudWaveFill = document.getElementById('hud-wave-fill');
+        const nextWaveButton = document.getElementById('btn-next-wave');
         const hudHp = document.getElementById('hud-hp');
         const hudRescued = document.getElementById('hud-rescued'), hudCasualty = document.getElementById('hud-casualty'), hudKills = document.getElementById('hud-kills');
         const rightPanel = document.getElementById('hud-right-panel'), skillStrip = document.getElementById('skill-strip');
@@ -3796,6 +3806,7 @@
         document.addEventListener('medjedlanguagechange', () => {
           nameInput.setCustomValidity('');
           syncAudioControls();
+          syncSpeedControls();
         });
         document.addEventListener('visibilitychange', () => {
           resetFrameClock();
@@ -4187,11 +4198,13 @@
         const startWave = (w) => {
           currentWave = Math.min(40, w);
           waveElapsed = 0; waveSpawnedCount = 0; waveElitesSpawned = 0; waveSpawnTimer = 0.3;
+          nextWaveButton.hidden = true;
           const pIdx = phaseIndexForWave(currentWave), ph = ENV_PHASES[pIdx];
           sceneManager.setPhase(pIdx);
           hudWave.textContent = `${ph.icon} ${wave(currentWave)} / 40`;
           hudPhaseName.textContent = t(ph.nameKey);
           const cfg = WAVES[currentWave];
+          setStyleWidth(hudWaveFill, cfg.boss ? '100%' : '0%');
           if (cfg.coffin) for (let i = 0; i < cfg.coffin; i++) souls.spawnCoffin();
 
           if (cfg.boss) {
@@ -4207,6 +4220,15 @@
             if (currentWave === 11 || currentWave === 21 || currentWave === 31) showBanner(`${ph.icon} ${t('phaseChanged', { phase: t(ph.nameKey) })}`);
           }
         };
+
+        const canStartNextWave = () => {
+          const cfg = WAVES[currentWave];
+          return gameState === 'PLAYING' && !cfg.boss && waveElapsed < cfg.dur
+            && waveSpawnedCount >= cfg.total && enemies.getActiveCount() === 0;
+        };
+        nextWaveButton.addEventListener('click', () => {
+          if (canStartNextWave()) startWave(currentWave + 1);
+        });
 
         const startNewRun = () => {
           if (gameState !== 'TITLE' && gameState !== 'RESULT' && gameState !== 'PAUSED') return;
@@ -4292,16 +4314,30 @@
         const settingsButton = document.getElementById('btn-settings');
         const settingsModal = document.getElementById('home-settings');
         const speedControls = document.querySelectorAll('select[data-game-speed]');
+        const speedButton = document.getElementById('btn-speed');
+        const syncSpeedControls = () => {
+          speedControls.forEach(select => { select.value = String(gameSpeed); });
+          const label = t('hudSpeed', { speed: number(gameSpeed) });
+          speedButton.textContent = label;
+          speedButton.setAttribute('aria-label', `${t('speed')} ${label}`);
+        };
+        const setGameSpeed = (speed) => {
+          if (!gameSpeeds.includes(speed)) return;
+          gameSpeed = speed;
+          syncSpeedControls();
+          try { localStorage.setItem(gameSpeedKey, String(gameSpeed)); } catch {}
+        };
         for (const control of speedControls) {
-          control.value = String(gameSpeed);
           control.addEventListener('change', () => {
-            const selected = Number(control.value);
-            if (!gameSpeeds.includes(selected)) return;
-            gameSpeed = selected;
-            speedControls.forEach(select => { select.value = String(gameSpeed); });
-            try { localStorage.setItem(gameSpeedKey, String(gameSpeed)); } catch {}
+            setGameSpeed(Number(control.value));
           });
         }
+        speedButton.addEventListener('click', () => {
+          if (gameState !== 'PLAYING' && gameState !== 'BOSS_INTRO') return;
+          const nextIndex = (gameSpeeds.indexOf(gameSpeed) + 1) % gameSpeeds.length;
+          setGameSpeed(gameSpeeds[nextIndex]);
+        });
+        syncSpeedControls();
         // 画面の揺れ：保存した値がなければ、OSの「動きを減らす」設定に合わせて弱めにする
         const shakeKey = 'medjed_screen_shake_v1';
         const shakeScales = { normal: 1, weak: 0.4, off: 0 };
@@ -4584,6 +4620,8 @@
             advanceGame(presentationStep);
           }
           if (!isGameClockRunning()) pendingGameSeconds = 0;
+          const hideNextWave = !canStartNextWave();
+          if (nextWaveButton.hidden !== hideNextWave) nextWaveButton.hidden = hideNextWave;
           enemies.visuals.sync();
           souls.visuals.sync();
           fx.sync();

@@ -1287,38 +1287,42 @@
       }
 
       const graphicsScripts = new Map();
-      function loadGraphicsScript(src) {
-        if (!graphicsScripts.has(src)) {
-          const promise = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            const finish = (error) => {
-              clearTimeout(timer);
-              script.onload = script.onerror = null;
-              if (error) {
-                graphicsScripts.delete(src);
-                script.remove();
-                reject(error);
-              } else resolve();
-            };
-            const timer = setTimeout(() => finish(new Error('3D model download timed out')), 8000);
-            script.onload = () => finish();
-            script.onerror = () => finish(new Error('3D model script unavailable'));
-            script.src = src;
-            document.head.append(script);
-          });
-          graphicsScripts.set(src, promise);
-        }
-        return graphicsScripts.get(src);
+      function loadGraphicsScript(src, globalName) {
+        const cached = graphicsScripts.get(src);
+        if (cached) return cached;
+
+        const url = new URL(src, document.baseURI);
+        // A failed response may still be cached by the browser.
+        if (graphicsScripts.has(src)) url.searchParams.set('retry', Date.now());
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          const finish = (error) => {
+            clearTimeout(timer);
+            script.onload = script.onerror = null;
+            if (error) {
+              graphicsScripts.set(src, null);
+              script.remove();
+              reject(error);
+            } else resolve();
+          };
+          const timer = setTimeout(() => finish(new Error('3D model download timed out')), 8000);
+          script.onload = () => {
+            if (window[globalName]) finish();
+            else finish(new Error('3D model script did not initialize'));
+          };
+          script.onerror = () => finish(new Error('3D model script unavailable'));
+          script.src = url.href;
+          document.head.append(script);
+        });
+        graphicsScripts.set(src, promise);
+        return promise;
       }
       async function loadDetailedGraphics() {
         try {
           await Promise.all([
-            loadGraphicsScript('./assets/pc_models_library.js?v=2'),
-            loadGraphicsScript('./assets/pc-graphics.js?v=2'),
+            loadGraphicsScript('./assets/pc_models_library.js?v=2', 'MedjedPCModels'),
+            loadGraphicsScript('./assets/pc-graphics.js?v=2', 'MedjedHighGraphics'),
           ]);
-          if (!window.MedjedHighGraphics || !window.MedjedPCModels) {
-            throw new Error('3D model initialization unavailable');
-          }
           return window.MedjedPCModels;
         } catch (error) {
           console.warn('軽量モデルで表示します。', error);

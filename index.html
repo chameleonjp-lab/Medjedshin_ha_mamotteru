@@ -1314,6 +1314,10 @@
           const d = new THREE.Object3D(); let i = 0;
           for (const z of [-15, -8, -1, 6, 11.2]) for (const side of [-1, 1]) { d.position.set(side * 13, 0, z); d.rotation.y = Math.PI / 4; d.updateMatrix(); pillars.setMatrixAt(i++, d.matrix); }
           pillars.instanceMatrix.needsUpdate = true; this.scene.add(pillars);
+          // Keep the existing desert lighting when the detailed models add studio reflections.
+          if (this.studio) {
+            for (const mesh of [outer, field, lane, t1, pillars]) mesh.material.envMapIntensity = 0;
+          }
         }
         addShake(a) { this.shakeIntensity = Math.min(1.2, this.shakeIntensity + a); }
         update(dt, targetPos, isTitleMode) {

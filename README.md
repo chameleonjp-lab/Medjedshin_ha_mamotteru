@@ -2,7 +2,7 @@
 
 メジェド神を動かし、古代エジプトの冥界で死者たちの行進を守る3Dアクションゲームです。40ウェーブ目の大蛇アペプを倒すとクリアです。死者の被害が30体に達するか、メジェドの体力が0になると敗北します。
 
-[ゲームを遊ぶ（GitHub Pages）](https://chameleonjp-lab.github.io/Medjedshin_ha_mamotteru/)
+[ゲームを遊ぶ（GitHub Pages）](https://chameleonjp-lab.github.io/medjedshin_ha_mamotteru/)
 
 ## 遊び方
 

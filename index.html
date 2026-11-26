@@ -493,7 +493,7 @@
           <div><strong data-i18n="controls">操作方法</strong><br><span data-i18n="controlsBody">パソコンでは、マウスを動かした方向へメジェドが移動します。Sキーか画面の「停止」で一時停止メニューを開けます。スマホでは、戦場に触れて指を動かすと移動できます。攻撃は自動で発動します。ホームの設定や一時停止メニューで、ゲーム速度を1倍・1.5倍・2倍から選べます。</span></div>
           <div><strong data-i18n="reflect">布の弾き返し（盾アクション）</strong><br><span data-i18n="reflectBody">毒サソリの毒弾やアヌビス弓兵の矢に向かって移動入力で体当たりすると、被ダメージ無効で3倍威力の反射弾を撃ち返します！</span></div>
           <div><strong data-i18n="training">スキル育成＆神格覚醒（全8種×Lv10）</strong><br><span data-i18n="trainingBody">敵撃破で落ちる経験値ジェムを集めてレベルアップ。Lv3までは自由に強化でき、Lv4は全8スキル平均Lv2.3以上（以降+1.0ごと）で段階解放されます。Lv10到達で強力な神格覚醒が発動します。</span></div>
-          <div><strong data-i18n="rewards">黄金宝箱とボス撃破報酬</strong><br><span data-i18n="rewardsBody">ファラオの棺を無傷で護衛すると黄金宝箱を獲得します。スロットの出目に応じて、最もレベルの低いスキルが1〜3レベル上がります。ボスが大技をためている間に一定のダメージを与えると、発動を止められます。第10・20・30ウェーブのボスを倒すと、レベル上限を1段階上げるか、上限内で好きなスキルを1レベル強化できます。全スキルが最大レベルなら、強化報酬は5秒間の攻撃力+20%になります。</span></div>
+          <div><strong data-i18n="rewards">黄金宝箱とボス撃破報酬</strong><br><span data-i18n="rewardsBody">ファラオの棺をゴールまで守り、残りHPが50以上なら、黄金宝箱を獲得します。スロットの出目に応じて、最もレベルの低いスキルが1〜3レベル上がります。ボスが大技をためている間に一定のダメージを与えると、発動を止められます。第10・20・30ウェーブのボスを倒すと、レベル上限を1段階上げるか、上限内で好きなスキルを1レベル強化できます。全スキルが最大レベルなら、強化報酬は5秒間の攻撃力+20%になります。</span></div>
         </div>
         <button type="button" class="modal-primary-btn" id="howto-close-btn" data-i18n="close">閉じる</button>
       </div>
@@ -666,7 +666,7 @@
     </div>
   </div>
 
-  <script src="./translations.js"></script>
+  <script src="./translations.js?v=20261127-02"></script>
   <script src="./localization.js?v=20261127-01"></script>
   <script>
     (function () {
@@ -721,6 +721,10 @@
         priest:  { hp: 50, speed: 1.6, rewardPt: 250 },
         coffin:  { hp: 120, speed: 1.2, rewardPt: 1000 },
       };
+
+      const COFFIN_CHEST_MIN_HP = 50;
+      const COFFIN_RANDOM_SPAWN_RATE = 0.02004;
+      const PRIEST_RANDOM_SPAWN_RATE = 0.1503;
 
       const ENEMY_SPECS = {
         jackal:   { hp: 30,  atk: 8,  speed: 2.6, exp: 10, pt: 20, radius: 0.5,  kbRes: 0.0, ranged: false },
@@ -2446,7 +2450,7 @@
       class SoulMarchManager {
         constructor(scene, cb, detailedModels) {
           this.cb = cb;
-          this.souls = Array.from({ length: 60 }, (_, index) => ({ index, active: false, type: 'general', x: 0, z: 0, hp: 30, maxHp: 30, speed: 1.8, animPhase: 0, flashTimer: 0, tookDamage: false }));
+          this.souls = Array.from({ length: 60 }, (_, index) => ({ index, active: false, type: 'general', x: 0, z: 0, hp: 30, maxHp: 30, speed: 1.8, animPhase: 0, flashTimer: 0 }));
           this.rescuedCount = 0; this.rescuedPts = 0; this.casualtyCount = 0;
           this.spawnTimer = 0.4; this.relayTimer = 15.0;
           this.meshes = {
@@ -2481,7 +2485,7 @@
         spawnSoul(type, x, z) {
           const sp = SOUL_TYPES[type];
           const s = this.souls.find((i) => !i.active); if (!s) return null;
-          s.active = true; s.type = type; s.x = x; s.z = z; s.hp = sp.hp; s.maxHp = sp.hp; s.speed = sp.speed; s.animPhase = Math.random() * 6.28; s.flashTimer = 0; s.tookDamage = false;
+          s.active = true; s.type = type; s.x = x; s.z = z; s.hp = sp.hp; s.maxHp = sp.hp; s.speed = sp.speed; s.animPhase = Math.random() * 6.28; s.flashTimer = 0;
           if (type === 'priest') this.priests.push(s);
           this.visuals.markChanged();
           if (type === 'coffin') this.cb.onCoffinSpawn();
@@ -2505,7 +2509,6 @@
           const remainingDamage = barrier ? barrier.damageAfterAbsorption(soul.x, rawDmg) : rawDmg;
           if (remainingDamage <= 0) return false;
           soul.hp -= this.isNearPriest(soul.x, soul.z) ? remainingDamage * 0.8 : remainingDamage;
-          soul.tookDamage = true;
           soul.flashTimer = 0.14;
           this.visuals.markChanged();
           if (soul.hp <= 0) { soul.active = false; this.casualtyCount++; this.cb.onCasualty(soul); return true; }
@@ -2518,7 +2521,10 @@
           if (this.spawnTimer <= 0) {
             this.spawnTimer = 1.9;
             const r = Math.random();
-            this.spawnSoul(r < 0.833 ? 'general' : r < 0.9833 ? 'priest' : 'coffin', FIELD.soulSpawnX, 12.4 + Math.random() * 2.2);
+            const coffinThreshold = 1 - COFFIN_RANDOM_SPAWN_RATE;
+            const priestThreshold = coffinThreshold - PRIEST_RANDOM_SPAWN_RATE;
+            const type = r < priestThreshold ? 'general' : r < coffinThreshold ? 'priest' : 'coffin';
+            this.spawnSoul(type, FIELD.soulSpawnX, 12.4 + Math.random() * 2.2);
           }
           this.relayTimer -= dt;
           if (this.relayTimer <= 0) { this.relayTimer = 15.0; this.cb.onExpRelay(); }
@@ -2533,7 +2539,7 @@
             if (s.x >= FIELD.soulGoalX) {
               s.active = false; this.rescuedCount++; this.rescuedPts += SOUL_TYPES[s.type].rewardPt;
               this.cb.onRescued?.(s);
-              if (s.type === 'coffin') this.cb.onCoffinRescued(!s.tookDamage);
+              if (s.type === 'coffin') this.cb.onCoffinRescued(s.hp);
               continue;
             }
           }
@@ -4131,14 +4137,14 @@
           },
           onRescued: (soul) => fx.soulRescued(soul),
           onExpRelay: () => { const c = gems.attractLowerHalf(); if (c > 0) showBanner(`✨ ${t('gemRelay', { count: number(c) })}`); },
-          onCoffinSpawn: () => showBanner(`⚱️ ${t('coffinSpawn')}`),
-          onCoffinRescued: (undamaged) => {
+          onCoffinSpawn: () => showBanner(`⚱️ ${t('coffinSpawn', { hp: number(COFFIN_CHEST_MIN_HP) })}`),
+          onCoffinRescued: (remainingHp) => {
             if (gameState === 'VICTORY' || gameState === 'RESULT' || gameState === 'DEFEAT') return;
-            if (undamaged) {
+            if (remainingHp >= COFFIN_CHEST_MIN_HP) {
               showBanner(`🎁 ${t('coffinGold')}`);
               pendingChests++;
             } else {
-              showBanner(`⚱️ ${t('coffinDamaged')}`);
+              showBanner(`⚱️ ${t('coffinLowHp', { hp: number(COFFIN_CHEST_MIN_HP) })}`);
             }
           },
         }, sceneManager.detailedModels);

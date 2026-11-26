@@ -19,7 +19,7 @@
   <meta name="twitter:image" content="https://chameleonjp-lab.github.io/Medjedshin_ha_mamotteru/assets/social-card-v1.jpg" />
   <meta name="twitter:image:alt" content="砂漠の戦場に立つメジェド神、死者たちの行進、奥に迫る大蛇アペプ" />
   <script src="./vendor/three.r128.min.js"></script>
-  <script src="./ranking-client.js?v=20261126-01"></script>
+  <script src="./ranking-client.js?v=20261127-03"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -489,7 +489,7 @@
       <div class="modal-card" style="max-width:440px;">
         <div class="modal-title" data-i18n="howTo">遊び方</div>
         <div class="howto-list">
-          <div><strong data-i18n="rules">基本ルール</strong><br><span data-i18n="rulesBody">画面下部の石畳を左から右へ行進する「死者たち」を、迫り来る魔物や神々から守り抜きます。Wave 40の最終ボス「大蛇アペプ」撃破でクリア！死者被害が30体、またはメジェドHPが0になると敗北です。</span></div>
+          <div><strong data-i18n="rules">基本ルール</strong><br><span data-i18n="rulesBody">画面下部の石畳を左から右へ行進する「死者たち」を、迫り来る魔物や神々から守り抜きます。Wave 40の最終ボス「大蛇アペプ」撃破でクリア！死者の被害が30人に達するか、メジェドの体力が0になると敗北です。初回プレイでは、死者の被害が40人に達すると敗北です。</span></div>
           <div><strong data-i18n="controls">操作方法</strong><br><span data-i18n="controlsBody">パソコンでは、マウスを動かした方向へメジェドが移動します。Sキーか画面の「停止」で一時停止メニューを開けます。スマホでは、戦場に触れて指を動かすと移動できます。攻撃は自動で発動します。ホームの設定や一時停止メニューで、ゲーム速度を1倍・1.5倍・2倍から選べます。</span></div>
           <div><strong data-i18n="reflect">布の弾き返し（盾アクション）</strong><br><span data-i18n="reflectBody">毒サソリの毒弾やアヌビス弓兵の矢に向かって移動入力で体当たりすると、被ダメージ無効で3倍威力の反射弾を撃ち返します！</span></div>
           <div><strong data-i18n="training">スキル育成＆神格覚醒（全8種×Lv10）</strong><br><span data-i18n="trainingBody">敵撃破で落ちる経験値ジェムを集めてレベルアップ。Lv3までは自由に強化でき、Lv4は全8スキル平均Lv2.3以上（以降+1.0ごと）で段階解放されます。Lv10到達で強力な神格覚醒が発動します。</span></div>
@@ -666,7 +666,7 @@
     </div>
   </div>
 
-  <script src="./translations.js?v=20261127-02"></script>
+  <script src="./translations.js?v=20261127-03"></script>
   <script src="./localization.js?v=20261127-01"></script>
   <script>
     (function () {
@@ -723,8 +723,11 @@
       };
 
       const COFFIN_CHEST_MIN_HP = 50;
-      const COFFIN_RANDOM_SPAWN_RATE = 0.02004;
+      const COFFIN_RANDOM_SPAWN_RATE = 0.035;
       const PRIEST_RANDOM_SPAWN_RATE = 0.1503;
+      const SOUL_LOSS_LIMIT = 30;
+      const FIRST_RUN_SOUL_LOSS_LIMIT = 40;
+      const RUN_STARTED_STORAGE_KEY = 'medjed_run_started_v1';
 
       const ENEMY_SPECS = {
         jackal:   { hp: 30,  atk: 8,  speed: 2.6, exp: 10, pt: 20, radius: 0.5,  kbRes: 0.0, ranged: false },
@@ -2475,7 +2478,8 @@
           const mesh = new THREE.InstancedMesh(geo, mat, cap); mesh.count = 0; mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;
           return { mesh, aA, fA, cap };
         }
-        reset() {
+        reset(casualtyLimit = SOUL_LOSS_LIMIT) {
+          this.casualtyLimit = casualtyLimit;
           for (const s of this.souls) s.active = false;
           this.priests = [];
           this.visuals.markChanged();
@@ -2505,7 +2509,7 @@
           return best;
         }
         damageSoul(soul, rawDmg, barrier) {
-          if (!soul.active) return false;
+          if (!soul.active || this.casualtyCount >= this.casualtyLimit) return false;
           const remainingDamage = barrier ? barrier.damageAfterAbsorption(soul.x, rawDmg) : rawDmg;
           if (remainingDamage <= 0) return false;
           soul.hp -= this.isNearPriest(soul.x, soul.z) ? remainingDamage * 0.8 : remainingDamage;
@@ -3774,6 +3778,17 @@
           return records;
         };
         const saveRecords = (rec) => { try { localStorage.setItem('medjed_3d_records_v1', JSON.stringify(rec)); } catch {} };
+        let startedRunOnPage = false;
+        const nextRunCasualtyLimit = () => {
+          if (startedRunOnPage) return SOUL_LOSS_LIMIT;
+          startedRunOnPage = true;
+          let playedBefore = ranking?.hasPlayed?.() || loadRecords().bestWave > 0;
+          try {
+            playedBefore ||= localStorage.getItem(RUN_STARTED_STORAGE_KEY) === '1';
+            localStorage.setItem(RUN_STARTED_STORAGE_KEY, '1');
+          } catch {}
+          return playedBefore ? SOUL_LOSS_LIMIT : FIRST_RUN_SOUL_LOSS_LIMIT;
+        };
         document.addEventListener('medjedlanguagechange', () => {
           nameInput.setCustomValidity('');
           syncAudioControls();
@@ -4132,8 +4147,8 @@
             if (gameState !== 'PLAYING') return;
             casualtyFlashTimer = 0.35; rightPanel.classList.add('casualty-flash');
             sceneManager.addShake(0.22); audio.playCasualty();
-            if (souls.casualtyCount >= 25) dangerVignette.classList.add('active');
-            if (souls.casualtyCount >= 30) triggerDefeat();
+            if (souls.casualtyCount >= souls.casualtyLimit - 5) dangerVignette.classList.add('active');
+            if (souls.casualtyCount >= souls.casualtyLimit) triggerDefeat();
           },
           onRescued: (soul) => fx.soulRescued(soul),
           onExpRelay: () => { const c = gems.attractLowerHalf(); if (c > 0) showBanner(`✨ ${t('gemRelay', { count: number(c) })}`); },
@@ -4148,6 +4163,7 @@
             }
           },
         }, sceneManager.detailedModels);
+        const casualtyText = () => `${number(souls.casualtyCount)} / ${number(souls.casualtyLimit)}`;
         const enemies = new EnemyManager(sceneManager.scene, (e) => {
           fx.enemyDeath(e);
           gems.spawnForEnemy(e);
@@ -4217,7 +4233,10 @@
           playerLv = 1; currentExp = 0; nextExp = nextExpForLevel(1); pendingLevelUps = 0; bossBonusPts = 0;
           bossRewardTimer = 0; pendingChests = 0;
           hitStopTimer = 0; slowMoTimer = 0; resetDmgStats();
-          input.resetAll(); player.reset(); skills.reset(); gems.reset(); souls.reset(); enemies.reset(); projectiles.reset(); boss.clear();
+          input.resetAll(); player.reset(); skills.reset(); gems.reset();
+          souls.reset(nextRunCasualtyLimit());
+          enemies.reset(); projectiles.reset(); boss.clear();
+          setText(hudCasualty, casualtyText());
           renderSkillStrip(); updateExpHud();
           gameState = 'PLAYING';
           resetFrameClock();
@@ -4402,7 +4421,7 @@
           pausedState = gameState;
           gameState = 'PAUSED'; input.resetAll();
           resetFrameClock();
-          pauseBody.textContent = `${wave(currentWave)} / 40 · ${level(playerLv)} · ${t('rescued')} ${number(souls.rescuedCount)} · ${t('lost')} ${number(souls.casualtyCount)} / 30`;
+          pauseBody.textContent = `${wave(currentWave)} / 40 · ${level(playerLv)} · ${t('rescued')} ${number(souls.rescuedCount)} · ${t('lost')} ${casualtyText()}`;
           pauseModal.classList.add('visible');
         };
         document.getElementById('btn-pause').addEventListener('click', togglePause);
@@ -4576,7 +4595,7 @@
             renderBossHud();
             setText(hudHp, String(Math.ceil(player.hp)));
             setText(hudRescued, String(souls.rescuedCount));
-            setText(hudCasualty, `${souls.casualtyCount} / 30`);
+            setText(hudCasualty, casualtyText());
             setText(hudKills, String(enemies.killCount));
           }
         };

@@ -34,7 +34,7 @@ jobs:
       - name: Prepare the site
         run: |
           mkdir public
-          cp index.html ranking-client.js public/
+          cp index.html ranking-client.js localization.js translations.js public/
           cp -R vendor assets public/
 
       - name: Upload the site

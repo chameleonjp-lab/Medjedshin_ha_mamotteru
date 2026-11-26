@@ -1208,7 +1208,6 @@
         constructor(canvas, onFirstGesture) {
           this.canvas = canvas;
           this.moveDir = { x: 0, z: 0 }; this.moveMagnitude = 0;
-          this.activePointerIds = new Set();
           this.mouse = null;
           this.pointerNdc = new THREE.Vector2();
           this.pointerGround = new THREE.Vector3();
@@ -1219,8 +1218,7 @@
           this.activePointerId = null; this.originX = 0; this.originY = 0; this.joyVecX = 0; this.joyVecZ = 0;
 
           window.addEventListener('blur', () => this.resetAll());
-          window.addEventListener('pointerdown', (e) => this.activePointerIds.add(e.pointerId));
-          const rmPtr = (e) => { this.activePointerIds.delete(e.pointerId); if (this.activePointerId === e.pointerId) this.releaseJoystick(); };
+          const rmPtr = (e) => { if (this.activePointerId === e.pointerId) this.releaseJoystick(); };
           window.addEventListener('pointerup', rmPtr); window.addEventListener('pointercancel', rmPtr);
 
           canvas.addEventListener('pointerdown', (e) => {
@@ -3689,7 +3687,8 @@
         let bossRewardTimer = 0, victoryTimer = 0, pendingChests = 0, defeatTimer = 0, hitFlashLevel = 0;
         let currentWave = 1, waveElapsed = 0, waveSpawnedCount = 0, waveElitesSpawned = 0, waveSpawnTimer = 0.4;
         let playerLv = 1, currentExp = 0, nextExp = nextExpForLevel(1), pendingLevelUps = 0, bossBonusPts = 0;
-        let levelUpOpenedAt = 0, preModalPtrs = new Set(), validModalPtrs = new Set(), currentChoices = [];
+        let levelUpOpenedAt = 0, currentChoices = [];
+        const skillChoiceDelay = 350;
 
         const showBanner = (msg) => { bannerToast.textContent = msg; bannerToast.classList.add('show'); toastTimer = 2.6; };
         // メジェドが受けたダメージは、原因にかかわらずここで数字にする。大きいほど目立たせる
@@ -4039,8 +4038,6 @@
           gameState = 'LEVEL_UP';
           levelUpOpenedAt = performance.now();
           const token = runToken, openedAt = levelUpOpenedAt;
-          preModalPtrs = new Set(input.activePointerIds);
-          validModalPtrs = new Set();
           input.resetAll();
 
           currentChoices = skills.rollChoices();
@@ -4063,8 +4060,13 @@
                 : `<span class="lu-badge up">${level(choice.fromLv)} → ${level(choice.toLv)}</span>`;
               card.innerHTML = `<span class="lu-key-hint">${idx+1}</span><div class="lu-card-top"><div class="lu-icon">${s.icon}</div><div class="lu-name-wrap">${badge}<div class="lu-name">${skillName(choice.id, isAw)}</div></div></div><div class="lu-desc">${t(`${choice.id}.${isAw ? 'awakenDesc' : 'desc'}`)}</div><div class="lu-diff">${skillStats(choice.id, choice.fromLv, choice.toLv)}</div>`;
             }
-            card.addEventListener('pointerdown', (e) => { if (performance.now() - levelUpOpenedAt >= 350 && !preModalPtrs.has(e.pointerId)) validModalPtrs.add(e.pointerId); });
-            card.addEventListener('pointerup', (e) => { if (performance.now() - levelUpOpenedAt >= 350 && !preModalPtrs.has(e.pointerId) && validModalPtrs.has(e.pointerId)) selectSkillChoice(idx); });
+            let pointerReady = false;
+            card.addEventListener('pointerdown', () => { pointerReady = performance.now() - openedAt >= skillChoiceDelay; });
+            card.addEventListener('pointercancel', () => { pointerReady = false; });
+            card.addEventListener('click', (e) => {
+              if (performance.now() - openedAt >= skillChoiceDelay && (e.detail === 0 || pointerReady)) selectSkillChoice(idx);
+              pointerReady = false;
+            });
             luCards.appendChild(card);
           });
           luModal.classList.add('visible');
@@ -4073,7 +4075,7 @@
             if (token === runToken && gameState === 'LEVEL_UP' && levelUpOpenedAt === openedAt) {
               luCards.querySelectorAll('.lu-card').forEach((el) => el.classList.remove('guard-locked'));
             }
-          }, 350);
+          }, skillChoiceDelay);
         };
 
         const selectSkillChoice = (idx) => {
@@ -4399,7 +4401,7 @@
         window.addEventListener('keydown', (e) => {
           if (e.repeat || e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.target.matches?.('input, textarea, [contenteditable]')) return;
           if (gameState === 'LEVEL_UP') {
-            if (performance.now() - levelUpOpenedAt < 350) return;
+            if (performance.now() - levelUpOpenedAt < skillChoiceDelay) return;
             if (e.code === 'Digit1') selectSkillChoice(0);
             if (e.code === 'Digit2') selectSkillChoice(1);
             if (e.code === 'Digit3') selectSkillChoice(2);

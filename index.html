@@ -124,7 +124,7 @@
     .title-btn-stack {
       display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; width: 100%;
     }
-    .title-btn-stack > :not(#btn-howto, #btn-settings) { grid-column: 1 / -1; }
+    .title-btn-stack > :not(.title-sub-btn) { grid-column: 1 / -1; }
     .name-field, .settings-toggle {
       display: grid; gap: 4px; color: #f4f1ea; font-size: 13px; text-align: left;
     }
@@ -151,6 +151,7 @@
     .play-cta:disabled, .title-sub-btn:disabled { opacity: 0.55; cursor: default; }
     .startup-error { color: #ffe2af; font-size: 14px; text-align: center; line-height: 1.55; }
     .title-sub-btn {
+      display: grid; place-items: center; text-align: center; text-decoration: none; overflow-wrap: anywhere;
       width: 100%; min-height: 44px; padding: 9px 12px; border-radius: 12px; border: 1.5px solid #d4af37;
       background: rgba(14, 18, 34, 0.88); color: #f4f1ea;
       font-size: 15px; font-weight: 800; letter-spacing: 0.05em; cursor: pointer;
@@ -482,6 +483,7 @@
           <button type="button" class="title-sub-btn" id="btn-howto" disabled data-i18n="howTo">ゲーム説明</button>
           <button type="button" class="title-sub-btn" id="btn-settings" disabled data-i18n="settings">設定</button>
           <button type="button" class="title-sub-btn x-post-button" id="home-x-post" data-i18n="share">Xにシェア</button>
+          <a class="title-sub-btn" id="home-ranking" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=medjedshin_ha_mamotteru" target="_blank" rel="noopener noreferrer" data-i18n="ranking">ランキング</a>
         </div>
       </div>
     </div>

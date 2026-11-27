@@ -3841,6 +3841,7 @@
           if (gameState === 'TITLE' && typeof ranking?.playCount === 'function') void homePlayCount.refresh();
         };
         if (ranking) {
+          window.addEventListener('medjedstartrecorded', refreshHomePlayCount);
           nameInput.value = ranking.savedName();
           ranking.flush();
           refreshHomePlayCount();

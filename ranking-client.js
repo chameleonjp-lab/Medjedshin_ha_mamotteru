@@ -92,12 +92,15 @@
     const key = pendingPrefix + run.id;
     try {
       if (!run.started) {
-        const state = await once(starting, run.id, () => rpc('medjed_start_v1', {
-          p_run_id: run.id, p_player_id: run.playerId, p_display_name: run.name || null, p_client_version: run.clientVersion,
-        }));
-        if (state !== 'accepted' && state !== 'duplicate') {
-          throw Object.assign(new Error('Start was not accepted'), { retryable: state === 'limited' });
-        }
+        await once(starting, run.id, async () => {
+          const state = await rpc('medjed_start_v1', {
+            p_run_id: run.id, p_player_id: run.playerId, p_display_name: run.name || null, p_client_version: run.clientVersion,
+          });
+          if (state !== 'accepted' && state !== 'duplicate') {
+            throw Object.assign(new Error('Start was not accepted'), { retryable: state === 'limited' });
+          }
+          window.dispatchEvent(new Event('medjedstartrecorded'));
+        });
         run.started = true;
       }
       if (run.result && run.name) {

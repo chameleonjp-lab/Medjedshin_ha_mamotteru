@@ -367,6 +367,7 @@
       font-size: 30px; font-weight: 900; color: #ffd700; background: rgba(255,215,0,0.14);
       box-shadow: 0 0 18px rgba(255,215,0,0.5);
     }
+    .rank-stamp[hidden] { display: none; }
     .result-score-box {
       background: rgba(255,215,0,0.08); border: 1px solid rgba(212,175,55,0.45); border-radius: 10px;
       padding: 10px 14px; text-align: center; margin-bottom: 12px;
@@ -393,6 +394,11 @@
     .vol-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; margin: 8px 0; }
     .vol-row input { flex: 1; accent-color: #ffd700; }
     #pause-modal .modal-card { max-height: 100%; overflow-y: auto; }
+    .pause-actions { display: grid; gap: 8px; margin-bottom: 14px; }
+    .pause-actions button, #retire-dialog button { min-height: 44px; }
+    #pause-resume-btn { min-height: 56px; font-size: 16px; }
+    #retire-dialog { position: fixed; margin: auto; width: calc(100% - 28px); max-height: calc(100% - 28px); overflow: auto; }
+    #retire-dialog::backdrop { background: rgba(6, 9, 20, 0.84); }
     .settings-select { font-size: 14px; font-weight: 700; }
     .graphics-status:empty { display: none; }
     .settings-select select {
@@ -623,6 +629,11 @@
       <div class="modal-card">
         <div class="modal-title" data-i18n="pauseTitle">一時停止・設定</div>
         <div class="modal-body" id="pause-body"></div>
+        <div class="pause-actions">
+          <button type="button" class="modal-primary-btn" id="pause-resume-btn" data-i18n="resume">再開</button>
+          <button type="button" class="modal-secondary-btn" id="pause-retire-btn" aria-haspopup="dialog" data-i18n="retire">リタイア</button>
+          <button type="button" class="modal-secondary-btn" id="pause-title-btn" data-i18n="home">ホーム</button>
+        </div>
         <label class="vol-row settings-select"><span data-i18n="speed">ゲーム速度</span>
           <select data-game-speed><option value="1" data-i18n="speedNormal">1倍（通常）</option><option value="1.5" data-i18n="speedFast">1.5倍</option><option value="2" data-i18n="speedFastest">2倍</option></select>
         </label>
@@ -637,13 +648,17 @@
         </div>
         <div class="vol-row"><label for="vol-bgm" data-i18n="music">音楽の音量</label><input type="range" id="vol-bgm" min="0" max="1" step="0.05" /></div>
         <div class="vol-row"><label for="vol-se" data-i18n="effects">効果音の音量</label><input type="range" id="vol-se" min="0" max="1" step="0.05" /></div>
-        <div class="modal-actions" style="margin-top:14px;">
-          <button type="button" class="modal-primary-btn" id="pause-resume-btn" data-i18n="resume">再開</button>
-          <button type="button" class="modal-secondary-btn" id="pause-restart-btn" data-i18n="retry">リトライ</button>
-          <button type="button" class="modal-secondary-btn" id="pause-title-btn" data-i18n="home">タイトル</button>
-        </div>
       </div>
     </div>
+
+    <dialog id="retire-dialog" class="modal-card" aria-labelledby="retire-title" aria-describedby="retire-note">
+      <h2 class="modal-title" id="retire-title" data-i18n="retirePrompt">リタイアしますか？</h2>
+      <p class="modal-body" id="retire-note" data-i18n="retireUnranked">リタイアしたプレイはランキング対象外です。</p>
+      <form method="dialog" class="modal-actions">
+        <button type="submit" class="modal-secondary-btn" id="retire-cancel-btn" autofocus data-i18n="cancel">キャンセル</button>
+        <button type="button" class="modal-primary-btn" id="retire-confirm-btn" data-i18n="retire">リタイア</button>
+      </form>
+    </dialog>
 
     <!-- リザルト画面 -->
     <div id="result-modal">
@@ -656,7 +671,7 @@
           <div class="rank-stamp" id="res-rank">S</div>
         </div>
         <div class="result-score-box">
-          <div style="font-size:11px;color:#c8c4ba;" data-i18n="finalScore">FINAL SCORE</div>
+          <div style="font-size:11px;color:#c8c4ba;" id="res-score-label" data-i18n="finalScore">FINAL SCORE</div>
           <div class="result-score-val" id="res-score">0</div>
         </div>
         <div class="result-grid" id="res-grid"></div>
@@ -680,7 +695,7 @@
     </div>
   </div>
 
-  <script src="./translations.js?v=20261127-04"></script>
+  <script src="./translations.js?v=20261127-05"></script>
   <script src="./localization.js?v=20261127-01"></script>
   <script>
     (function () {
@@ -3670,6 +3685,7 @@
         const chestModal = document.getElementById('chest-modal'), chestReel = document.getElementById('chest-reel'), chestRewards = document.getElementById('chest-rewards'), chestCloseBtn = document.getElementById('chest-close-btn');
         const brModal = document.getElementById('boss-reward-modal'), brSub = document.getElementById('br-sub'), brUnlockBtn = document.getElementById('br-unlock-btn'), brGrid = document.getElementById('br-grid');
         const pauseModal = document.getElementById('pause-modal'), pauseBody = document.getElementById('pause-body');
+        const retireDialog = document.getElementById('retire-dialog');
         const resultModal = document.getElementById('result-modal');
 
         const audio = new AudioManager();
@@ -4013,13 +4029,17 @@
           defeatFade.classList.add('active');
         };
 
-        const showResult = (cleared) => {
+        const showResult = (outcome) => {
+          const cleared = outcome === 'cleared';
+          const retired = outcome === 'retired';
           if (gameState === 'RESULT' || (!cleared && gameState === 'VICTORY')) return;
           gameState = 'RESULT';
           defeatFade.classList.remove('active');
           clearBattleNotices();
           input.resetAll();
           hudRoot.classList.add('hidden');
+          pauseModal.classList.remove('visible');
+          bossIntroBanner.classList.remove('visible');
           brModal.classList.remove('visible');
           chestModal.classList.remove('visible');
           luModal.classList.remove('visible');
@@ -4031,22 +4051,32 @@
           const finalScore = Math.max(0, Math.floor(base * mult));
           const rank = !cleared ? 'C' : cas <= 5 ? 'S' : cas <= 12 ? 'A' : 'B';
 
-          const prev = loadRecords();
-          const isNewRec = finalScore > prev.highScore;
-          saveRecords({
-            highScore: Math.max(prev.highScore, finalScore),
-            bestWave: Math.max(prev.bestWave, currentWave),
-            bestRank: rankOrder[rank] > rankOrder[prev.bestRank] ? rank : prev.bestRank,
-          });
+          let isNewRec = false;
+          if (!retired) {
+            const prev = loadRecords();
+            isNewRec = finalScore > prev.highScore;
+            saveRecords({
+              highScore: Math.max(prev.highScore, finalScore),
+              bestWave: Math.max(prev.bestWave, currentWave),
+              bestRank: rankOrder[rank] > rankOrder[prev.bestRank] ? rank : prev.bestRank,
+            });
+          }
 
-          document.getElementById('res-title').textContent = cleared ? `🌄 ${t('wonTitle')}` : t('lostTitle');
-          document.getElementById('res-sub').textContent = cleared ? t('wonText') : t('lostWave', { wave: number(currentWave) });
-          document.getElementById('res-rank').textContent = rank;
+          document.getElementById('res-title').textContent = retired ? t('retiredTitle') : cleared ? `🌄 ${t('wonTitle')}` : t('lostTitle');
+          document.getElementById('res-sub').textContent = retired ? '' : cleared ? t('wonText') : t('lostWave', { wave: number(currentWave) });
+          const rankStamp = document.getElementById('res-rank');
+          rankStamp.hidden = retired;
+          rankStamp.textContent = retired ? '' : rank;
+          const scoreLabel = retired ? 'partialScore' : 'finalScore';
+          translatedText(document.getElementById('res-score-label'), scoreLabel);
           document.getElementById('res-score').innerHTML = `${number(finalScore)}${isNewRec ? `<span class="new-rec">${t('newRecord')}</span>` : ''}`;
-          resultShareLines = [`${t('finalScore')} ${number(finalScore)}`, `${t('reachedWave')} ${number(currentWave)} / 40`];
-          rankingStatus.textContent = '';
+          resultShareLines = [`${t(scoreLabel)} ${number(finalScore)}`, `${t('reachedWave')} ${number(currentWave)} / 40`];
+          if (retired) resultShareLines.unshift(t('retiredTitle'));
+          rankingStatus.textContent = retired ? t('retireUnranked') : '';
           rankingRetry.hidden = true;
-          if (rankingRun?.name) {
+          if (retired) {
+            rankingRun = null;
+          } else if (rankingRun?.name) {
             ranking.finish(rankingRun, finalScore, currentWave, cleared);
             sendRankingResult(rankingRun);
           }
@@ -4233,7 +4263,7 @@
         });
 
         const startNewRun = () => {
-          if (gameState !== 'TITLE' && gameState !== 'RESULT' && gameState !== 'PAUSED') return;
+          if (gameState !== 'TITLE' && gameState !== 'RESULT') return;
           const name = nameInput.value.trim();
           if (ranking && !ranking.validName(name)) {
             nameInput.setCustomValidity(t('invalidName'));
@@ -4468,7 +4498,14 @@
         };
         document.getElementById('btn-pause').addEventListener('click', togglePause);
         document.getElementById('pause-resume-btn').addEventListener('click', resumeGame);
-        document.getElementById('pause-restart-btn').addEventListener('click', startNewRun);
+        document.getElementById('pause-retire-btn').addEventListener('click', () => {
+          if (gameState === 'PAUSED' && !retireDialog.open) retireDialog.showModal();
+        });
+        document.getElementById('retire-confirm-btn').addEventListener('click', () => {
+          if (gameState !== 'PAUSED' || !retireDialog.open) return;
+          retireDialog.close();
+          showResult('retired');
+        });
         document.getElementById('pause-title-btn').addEventListener('click', backToTitle);
         chestCloseBtn.addEventListener('click', () => {
           chestModal.classList.remove('visible');
@@ -4476,7 +4513,7 @@
           else gameState = 'PLAYING';
         });
         window.addEventListener('keydown', (e) => {
-          if (e.repeat || e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.target.matches?.('input, textarea, [contenteditable]')) return;
+          if (retireDialog.open || e.repeat || e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.target.matches?.('input, textarea, [contenteditable]')) return;
           if (gameState === 'LEVEL_UP') {
             if (performance.now() - levelUpOpenedAt < skillChoiceDelay) return;
             if (e.code === 'Digit1') selectSkillChoice(0);
@@ -4502,7 +4539,7 @@
             frameGameSeconds += dt;
             if (gameState === 'VICTORY') {
               victoryTimer -= dt;
-              if (victoryTimer <= 0) showResult(true);
+              if (victoryTimer <= 0) showResult('cleared');
             }
           } else if (gameState === 'DEFEAT') {
             // ゲーム速度にかかわらず、実時間の4分の1の速さで動かす。終わる時刻は tick で実時間で数える
@@ -4609,7 +4646,7 @@
 
           if (gameState === 'DEFEAT') {
             defeatTimer -= Math.min(elapsed, maxGameFrameSeconds);
-            if (defeatTimer <= 0) showResult(false);
+            if (defeatTimer <= 0) showResult('defeated');
           }
           if (isGameClockRunning()) {
             // Use the same simulation step at every speed and limit catch-up after long frames.

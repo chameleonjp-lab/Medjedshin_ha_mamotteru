@@ -125,6 +125,11 @@
       display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; width: 100%;
     }
     .title-btn-stack > :not(.title-sub-btn) { grid-column: 1 / -1; }
+    .title-play-count {
+      display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 4px 8px;
+      margin: 0; color: #f4f1ea; font-size: 12px; text-align: center;
+    }
+    .title-play-count b { color: #ffe7a6; font-variant-numeric: tabular-nums; }
     .name-field, .settings-toggle {
       display: grid; gap: 4px; color: #f4f1ea; font-size: 13px; text-align: left;
     }
@@ -424,6 +429,16 @@
     }
     .settings-toggle { display: flex; min-height: 34px; align-items: center; gap: 8px; }
     .settings-toggle input { accent-color: #ffd700; }
+    .result-board { margin-block: 10px; text-align: start; }
+    .result-board h3 { margin: 0 0 4px; font-size: 14px; }
+    .result-board-status { margin: 4px 0; color: #e2dac9; font-size: 12px; }
+    .result-board-list { margin: 4px 0; padding: 0; max-block-size: min(30vh, 13rem); overflow-y: auto; list-style: none; }
+    .result-board-list li {
+      display: grid; grid-template-columns: minmax(2ch, auto) minmax(0, 1fr) minmax(0, auto); gap: 8px;
+      padding: 4px; border-block-end: 1px solid #494551; font-size: 13px; overflow-wrap: anywhere;
+    }
+    .result-board-list li strong { text-align: end; font-variant-numeric: tabular-nums; }
+    #result-board-retry { min-height: 44px; }
     .ranking-feedback { margin-bottom: 12px; color: #e2dac9; font-size: 12px; }
     .ranking-feedback button { min-height: 44px; margin-top: 4px; }
 
@@ -481,6 +496,9 @@
           <p class="startup-error" id="startup-error" role="alert" hidden></p>
           <noscript><p class="startup-error">遊ぶには、ブラウザで JavaScript を有効にしてください。</p></noscript>
           <button type="button" class="play-cta" id="btn-play" disabled data-i18n="play">ゲーム開始</button>
+          <p class="title-play-count" id="title-play-count" aria-live="polite">
+            <span data-i18n="plays">プレー回数</span><b id="title-play-count-value">—</b>
+          </p>
           <div class="name-field">
             <label for="player-name" data-i18n="name">名前（任意）</label>
             <input type="text" id="player-name" autocomplete="nickname" spellcheck="false" aria-describedby="name-note" />
@@ -681,6 +699,12 @@
           <p id="result-ranking-status" role="status"></p>
           <button type="button" class="modal-secondary-btn" id="result-ranking-retry" hidden data-i18n="retryRanking">記録を再送する</button>
         </div>
+        <section class="result-board" aria-labelledby="result-board-title">
+          <h3 id="result-board-title" data-i18n="resultBoardTop">ランキング上位30名</h3>
+          <p class="result-board-status" id="result-board-status" role="status"></p>
+          <ul class="result-board-list" id="result-board-list" role="list" tabindex="0" aria-labelledby="result-board-title" hidden></ul>
+          <button type="button" id="result-board-retry" class="modal-secondary-btn" data-i18n="resultBoardRetry" hidden>ランキングを再取得</button>
+        </section>
         <div class="modal-actions result-actions">
           <button type="button" class="modal-primary-btn" id="res-retry-btn" data-i18n="again">もう一度遊ぶ</button>
           <button type="button" class="modal-secondary-btn x-post-button" id="result-x-post" data-i18n="share">Xにシェア</button>
@@ -3775,20 +3799,131 @@
         const rankingStatus = document.getElementById('result-ranking-status');
         const rankingRetry = document.getElementById('result-ranking-retry');
         let rankingRun = null;
+        function createHomeCount({ load, paint, format }) {
+          let sequence = 0;
+          let state = 'idle';
+          let value;
+          const repaint = () => paint(state, state === 'ready' ? format(value) : state === 'loading' ? '…' : '—');
+          async function refresh() {
+            const current = ++sequence;
+            state = 'loading';
+            repaint();
+            try {
+              const next = await load();
+              if (current !== sequence) return;
+              if (!Number.isSafeInteger(next) || next < 0) throw new Error('Invalid count');
+              value = next;
+              state = 'ready';
+            } catch {
+              if (current !== sequence) return;
+              state = 'unavailable';
+            }
+            repaint();
+          }
+          function invalidate() {
+            sequence++;
+            state = 'idle';
+            repaint();
+          }
+          return { refresh, repaint, invalidate };
+        }
+        const titlePlayCount = document.getElementById('title-play-count');
+        const titlePlayCountValue = document.getElementById('title-play-count-value');
+        const homePlayCount = createHomeCount({
+          load: () => ranking.playCount(),
+          format: number,
+          paint(state, value) {
+            titlePlayCount.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');
+            titlePlayCountValue.textContent = value;
+          },
+        });
+        const refreshHomePlayCount = () => {
+          if (gameState === 'TITLE' && typeof ranking?.playCount === 'function') void homePlayCount.refresh();
+        };
         if (ranking) {
+          window.addEventListener('medjedstartrecorded', refreshHomePlayCount);
           nameInput.value = ranking.savedName();
           ranking.flush();
+          refreshHomePlayCount();
           window.addEventListener('online', () => {
             ranking.flush();
+            refreshHomePlayCount();
             if (gameState === 'RESULT' && rankingRun?.result && !rankingRetry.hidden) sendRankingResult(rankingRun);
           });
         }
+        function createResultBoard({load, paint}) {
+          let generation = 0;
+          let rows = [];
+          let state = 'idle';
+          const repaint = () => paint({state, rows});
+          function invalidate() {
+            generation++;
+            rows = [];
+            state = 'idle';
+            repaint();
+          }
+          async function refresh() {
+            const request = ++generation;
+            state = 'loading';
+            repaint();
+            try {
+              const next = await load();
+              if (request !== generation) return;
+              if (!Array.isArray(next) || next.length > 30 || !next.every(row =>
+                row && Number.isSafeInteger(row.rank) && row.rank >= 1 &&
+                typeof row.display_name === 'string' && row.display_name.length > 0 &&
+                Number.isInteger(row.score) && row.score >= 0 && row.score <= 2147483647 &&
+                Number.isInteger(row.wave) && row.wave >= 1 && row.wave <= 40
+              )) throw new Error('Invalid ranking snapshot');
+              rows = next.map(({rank, display_name, score, wave}) => ({rank, display_name, score, wave}));
+              state = rows.length ? 'ready' : 'empty';
+            } catch {
+              if (request !== generation) return;
+              state = 'error';
+            }
+            repaint();
+          }
+          return {invalidate, refresh, repaint};
+        }
+        const boardStatus = document.getElementById('result-board-status');
+        const boardList = document.getElementById('result-board-list');
+        const boardRetry = document.getElementById('result-board-retry');
+        const board = createResultBoard({
+          load: () => ranking.boardTop30(),
+          paint({state, rows}) {
+            const key = { loading: 'resultBoardLoading', empty: 'resultBoardEmpty', error: 'resultBoardError' }[state];
+            boardStatus.textContent = key ? t(key) : '';
+            boardRetry.hidden = state !== 'error';
+            boardList.setAttribute('aria-busy', String(state === 'loading'));
+            boardList.hidden = rows.length === 0;
+            const fragment = document.createDocumentFragment();
+            for (const row of rows) {
+              const item = document.createElement('li');
+              const placement = document.createElement('span');
+              const name = document.createElement('bdi');
+              const score = document.createElement('strong');
+              placement.textContent = number(row.rank);
+              name.textContent = row.display_name;
+              score.textContent = number(row.score);
+              item.append(placement, name, score);
+              fragment.append(item);
+            }
+            boardList.replaceChildren(fragment);
+          },
+        });
+        const refreshResultBoard = () => {
+          if (gameState === 'RESULT') void board.refresh();
+        };
+        boardRetry.addEventListener('click', refreshResultBoard);
         const sendRankingResult = async (run) => {
           rankingStatus.textContent = t('rankingSending');
           rankingRetry.hidden = true;
           try {
             await ranking.send(run);
-            if (rankingRun === run && gameState === 'RESULT') rankingStatus.textContent = t('rankingSent');
+            if (rankingRun === run && gameState === 'RESULT') {
+              rankingStatus.textContent = t('rankingSent');
+              refreshResultBoard();
+            }
           } catch (error) {
             if (rankingRun !== run || gameState !== 'RESULT') return;
             rankingStatus.textContent = error.retryable ? t('rankingFailed') : t('rankingRejected');
@@ -3823,6 +3958,8 @@
         };
         document.addEventListener('medjedlanguagechange', () => {
           nameInput.setCustomValidity('');
+          if (gameState === 'TITLE') homePlayCount.repaint();
+          if (gameState === 'RESULT') board.repaint();
           syncAudioControls();
           syncSpeedControls();
         });
@@ -4103,6 +4240,7 @@
               }).join('');
 
           resultModal.classList.add('visible');
+          refreshResultBoard();
         };
 
         const openLevelUpModal = () => {
@@ -4297,6 +4435,8 @@
           setText(hudCasualty, casualtyText());
           renderSkillStrip(); updateExpHud();
           gameState = 'PLAYING';
+          homePlayCount.invalidate();
+          board.invalidate();
           resetFrameClock();
           startWave(1);
           rankingRun = ranking?.start(name) ?? null;
@@ -4312,6 +4452,7 @@
           luModal.classList.remove('visible');
           howtoModal.classList.remove('visible');
           gameState = 'TITLE';
+          board.invalidate();
           clearBattleNotices();
           defeatFade.classList.remove('active');
           dangerVignette.classList.remove('active');
@@ -4323,6 +4464,7 @@
           pauseModal.classList.remove('visible');
           bossHud.classList.remove('visible');
           titleScreen.classList.remove('hidden');
+          refreshHomePlayCount();
           boss.clear(); enemies.reset(); projectiles.reset(); gems.reset(); player.reset();
           player.root.rotation.y = 0;
           sceneManager.setPhase(0);

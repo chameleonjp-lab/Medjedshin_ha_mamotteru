@@ -1,6 +1,11 @@
 /* Game copy by language. Keep interpolation fields such as {wave} in each translation. */
 window.MedjedTranslations = {
   "ja": {
+    "resultBoardTop": "ランキング上位30名",
+    "resultBoardLoading": "ランキングを取得中…",
+    "resultBoardEmpty": "ランキング記録はまだありません。",
+    "resultBoardError": "ランキングを取得できませんでした。",
+    "resultBoardRetry": "ランキングを再取得",
     "title": "メジェド神は守ってる",
     "tagline": "40ウェーブの魔物と4柱のボスから死者たちの行進を守り抜け",
     "eyebrow": "古代エジプト 3Dサバイバル",
@@ -198,6 +203,11 @@ window.MedjedTranslations = {
     "repeatedPower": "1ヒットの威力"
   },
   "en": {
+    "resultBoardTop": "Top 30 players",
+    "resultBoardLoading": "Loading rankings…",
+    "resultBoardEmpty": "No ranked scores yet.",
+    "resultBoardError": "Could not load rankings.",
+    "resultBoardRetry": "Reload rankings",
     "title": "Medjed the Guardian",
     "tagline": "Protect the marching souls through 40 waves and 4 bosses.",
     "eyebrow": "ANCIENT EGYPT 3D SURVIVAL",
@@ -395,6 +405,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Power per hit"
   },
   "es": {
+    "resultBoardTop": "30 mejores jugadores",
+    "resultBoardLoading": "Cargando la clasificación…",
+    "resultBoardEmpty": "Aún no hay puntuaciones clasificadas.",
+    "resultBoardError": "No se pudo cargar la clasificación.",
+    "resultBoardRetry": "Volver a cargar",
     "title": "Medjed, el guardián",
     "tagline": "Protege a las almas en marcha durante 40 oleadas y contra 4 jefes.",
     "eyebrow": "SUPERVIVENCIA 3D EN EL ANTIGUO EGIPTO",
@@ -592,6 +607,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Potencia por impacto"
   },
   "pt-BR": {
+    "resultBoardTop": "30 melhores jogadores",
+    "resultBoardLoading": "Carregando o ranking…",
+    "resultBoardEmpty": "Ainda não há pontuações no ranking.",
+    "resultBoardError": "Não foi possível carregar o ranking.",
+    "resultBoardRetry": "Recarregar ranking",
     "title": "Medjed, o guardião",
     "tagline": "Proteja as almas em marcha por 40 ondas e contra 4 chefes.",
     "eyebrow": "SOBREVIVÊNCIA 3D NO EGITO ANTIGO",
@@ -789,6 +809,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Força por acerto"
   },
   "zh-Hans": {
+    "resultBoardTop": "排行榜前30名",
+    "resultBoardLoading": "正在加载排行榜…",
+    "resultBoardEmpty": "暂无上榜记录。",
+    "resultBoardError": "无法加载排行榜。",
+    "resultBoardRetry": "重新加载排行榜",
     "title": "守护之神梅杰德",
     "tagline": "守护行进中的亡灵，迎战40波敌人与4位首领。",
     "eyebrow": "古埃及3D生存",
@@ -986,6 +1011,11 @@ window.MedjedTranslations = {
     "repeatedPower": "单次命中威力"
   },
   "fr": {
+    "resultBoardTop": "Les 30 meilleurs joueurs",
+    "resultBoardLoading": "Chargement du classement…",
+    "resultBoardEmpty": "Aucun score classé pour le moment.",
+    "resultBoardError": "Impossible de charger le classement.",
+    "resultBoardRetry": "Recharger le classement",
     "title": "Medjed, le gardien",
     "tagline": "Protège les âmes en marche pendant 40 vagues et face à 4 boss.",
     "eyebrow": "SURVIE 3D EN ÉGYPTE ANCIENNE",
@@ -1183,6 +1213,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Puissance par coup"
   },
   "de": {
+    "resultBoardTop": "Die 30 besten Spieler",
+    "resultBoardLoading": "Rangliste wird geladen…",
+    "resultBoardEmpty": "Noch keine gewerteten Ergebnisse.",
+    "resultBoardError": "Rangliste konnte nicht geladen werden.",
+    "resultBoardRetry": "Rangliste neu laden",
     "title": "Medjed, der Wächter",
     "tagline": "Beschütze den Zug der Seelen vor 40 Gegnerwellen und 4 Bossen.",
     "eyebrow": "3D-ÜBERLEBEN IM ALTEN ÄGYPTEN",
@@ -1380,6 +1415,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Stärke pro Treffer"
   },
   "ko": {
+    "resultBoardTop": "상위 30명",
+    "resultBoardLoading": "순위를 불러오는 중…",
+    "resultBoardEmpty": "아직 순위 기록이 없습니다.",
+    "resultBoardError": "순위를 불러오지 못했습니다.",
+    "resultBoardRetry": "순위 다시 불러오기",
     "title": "메제드 신이 지킨다",
     "tagline": "40개 웨이브의 몬스터와 보스 4명으로부터 행진하는 영혼을 지키세요.",
     "eyebrow": "고대 이집트 3D 생존",
@@ -1577,6 +1617,11 @@ window.MedjedTranslations = {
     "repeatedPower": "타격당 위력"
   },
   "ru": {
+    "resultBoardTop": "30 лучших игроков",
+    "resultBoardLoading": "Загрузка рейтинга…",
+    "resultBoardEmpty": "В рейтинге пока нет результатов.",
+    "resultBoardError": "Не удалось загрузить рейтинг.",
+    "resultBoardRetry": "Загрузить рейтинг снова",
     "title": "Меджед-защитник",
     "tagline": "Защити шествие душ от 40 волн чудовищ и 4 боссов.",
     "eyebrow": "3D-ВЫЖИВАНИЕ В ДРЕВНЕМ ЕГИПТЕ",
@@ -1774,6 +1819,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Мощность за попадание"
   },
   "it": {
+    "resultBoardTop": "I 30 migliori giocatori",
+    "resultBoardLoading": "Caricamento della classifica…",
+    "resultBoardEmpty": "Nessun risultato in classifica.",
+    "resultBoardError": "Impossibile caricare la classifica.",
+    "resultBoardRetry": "Ricarica la classifica",
     "title": "Medjed, il guardiano",
     "tagline": "Proteggi le anime in marcia per 40 ondate e contro 4 boss.",
     "eyebrow": "SOPRAVVIVENZA 3D NELL’ANTICO EGITTO",
@@ -1971,6 +2021,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Potenza per colpo"
   },
   "zh-Hant": {
+    "resultBoardTop": "排行榜前30名",
+    "resultBoardLoading": "正在載入排行榜…",
+    "resultBoardEmpty": "目前沒有上榜紀錄。",
+    "resultBoardError": "無法載入排行榜。",
+    "resultBoardRetry": "重新載入排行榜",
     "title": "守護之神梅傑德",
     "tagline": "守護行進中的亡靈，迎戰40波敵人與4位首領。",
     "eyebrow": "古埃及3D生存",
@@ -2168,6 +2223,11 @@ window.MedjedTranslations = {
     "repeatedPower": "單次命中威力"
   },
   "id": {
+    "resultBoardTop": "30 pemain teratas",
+    "resultBoardLoading": "Memuat peringkat…",
+    "resultBoardEmpty": "Belum ada skor dalam peringkat.",
+    "resultBoardError": "Peringkat gagal dimuat.",
+    "resultBoardRetry": "Muat ulang peringkat",
     "title": "Medjed Sang Pelindung",
     "tagline": "Lindungi arak-arakan arwah dari 40 gelombang musuh dan 4 bos.",
     "eyebrow": "BERTAHAN HIDUP 3D DI MESIR KUNO",
@@ -2365,6 +2425,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Kekuatan per hantaman"
   },
   "tr": {
+    "resultBoardTop": "En iyi 30 oyuncu",
+    "resultBoardLoading": "Sıralama yükleniyor…",
+    "resultBoardEmpty": "Henüz sıralanmış skor yok.",
+    "resultBoardError": "Sıralama yüklenemedi.",
+    "resultBoardRetry": "Sıralamayı yeniden yükle",
     "title": "Muhafız Medjed",
     "tagline": "Ruhların yürüyüşünü 40 düşman dalgasına ve 4 bossa karşı koru.",
     "eyebrow": "ANTİK MISIR’DA 3B HAYATTA KALMA",
@@ -2562,6 +2627,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Vuruş başına güç"
   },
   "vi": {
+    "resultBoardTop": "30 người chơi dẫn đầu",
+    "resultBoardLoading": "Đang tải bảng xếp hạng…",
+    "resultBoardEmpty": "Chưa có điểm trên bảng xếp hạng.",
+    "resultBoardError": "Không tải được bảng xếp hạng.",
+    "resultBoardRetry": "Tải lại bảng xếp hạng",
     "title": "Medjed Hộ Vệ",
     "tagline": "Bảo vệ đoàn linh hồn trước 40 đợt quái và 4 trùm.",
     "eyebrow": "SINH TỒN 3D Ở AI CẬP CỔ ĐẠI",
@@ -2759,6 +2829,11 @@ window.MedjedTranslations = {
     "repeatedPower": "Uy lực mỗi lần trúng"
   },
   "th": {
+    "resultBoardTop": "ผู้เล่น 30 อันดับแรก",
+    "resultBoardLoading": "กำลังโหลดอันดับ…",
+    "resultBoardEmpty": "ยังไม่มีคะแนนในตารางอันดับ",
+    "resultBoardError": "โหลดตารางอันดับไม่สำเร็จ",
+    "resultBoardRetry": "โหลดตารางอันดับอีกครั้ง",
     "title": "เมดเจดผู้พิทักษ์",
     "tagline": "ปกป้องขบวนวิญญาณจากศัตรู 40 ระลอกและบอส 4 ตน",
     "eyebrow": "เอาตัวรอด 3 มิติในอียิปต์โบราณ",

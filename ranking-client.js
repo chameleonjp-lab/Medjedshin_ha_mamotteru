@@ -139,8 +139,12 @@
     return count;
   }
 
+  async function boardTop30() {
+    return rpc('medjed_board_v1', { p_offset: 0, p_limit: 30 });
+  }
+
   window.MedjedRanking = {
-    start, finish, send, flush, playCount, validName,
+    start, finish, send, flush, playCount, boardTop30, validName,
     hasPlayed() { return uuidPattern.test(get(playerKey) || ''); },
     savedName() { const name = get(nameKey) || ''; return validName(name) ? name : ''; },
   };
